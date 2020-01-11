@@ -89,6 +89,7 @@ import com.android.launcher3.folder.FolderIcon;
 import com.android.launcher3.graphics.PreloadIconDelegate;
 import com.android.launcher3.graphics.ThemeManager;
 import com.android.launcher3.icons.BitmapInfo.DrawableCreationFlags;
+import com.android.launcher3.graphics.DrawableFactory;
 import com.android.launcher3.icons.DotRenderer;
 import com.android.launcher3.icons.DotRenderer.IconShapeInfo;
 import com.android.launcher3.icons.FastBitmapDrawable;

@@ -49,6 +49,7 @@ import com.android.launcher3.Utilities;
 import com.android.launcher3.apppairs.AppPairIcon;
 import com.android.launcher3.apppairs.AppPairIconDrawingParams;
 import com.android.launcher3.apppairs.AppPairIconGraphic;
+import com.android.launcher3.graphics.DrawableFactory;
 import com.android.launcher3.model.data.AppPairInfo;
 import com.android.launcher3.model.data.ItemInfo;
 import com.android.launcher3.model.data.ItemInfoWithIcon;
@@ -82,6 +83,7 @@ public class PreviewItemManager {
 
     private final Context mContext;
     private final FolderIcon mIcon;
+    private final DrawableFactory mDrawableFactory;
     @VisibleForTesting
     public final int mIconSize;
 
@@ -116,6 +118,7 @@ public class PreviewItemManager {
     public PreviewItemManager(FolderIcon icon) {
         mContext = icon.getContext();
         mIcon = icon;
+        mDrawableFactory = DrawableFactory.INSTANCE.get(mContext);
         mIconSize = ActivityContext.lookupContext(
                 mContext).getDeviceProfile().getFolderProfile().getChildIconSizePx();
         mClipThreshold = dpToPx(1f);
@@ -454,7 +457,7 @@ public class PreviewItemManager {
             PreviewItemDrawingParams p, ItemInfo item, boolean loadHighResIcon) {
         if (item instanceof WorkspaceItemInfo wii) {
             if (wii.shouldShowPendingIcon()) {
-                p.drawable = newPendingIcon(wii, mContext, FLAG_THEMED);
+                p.drawable = mDrawableFactory.newPendingIcon(wii, mContext, FLAG_THEMED);
             } else {
                 p.drawable = wii.newIcon(mContext, FLAG_THEMED);
             }
