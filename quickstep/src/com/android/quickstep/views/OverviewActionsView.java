@@ -101,6 +101,7 @@ public class OverviewActionsView<T extends OverlayUICallbacks> extends FrameLayo
     private static final String KEY_RECENTS_SCREENSHOT = "pref_recents_screenshot";
     private static final String KEY_RECENTS_CLEAR_ALL = "pref_recents_clear_all";
     private static final String KEY_RECENTS_LENS = "pref_recents_lens";
+    private static final String KEY_RECENTS_LOCK = "pref_recents_lock";
 
     private MultiValueAlpha mMultiValueAlpha;
     private Button mSplitButton;
@@ -127,6 +128,7 @@ public class OverviewActionsView<T extends OverlayUICallbacks> extends FrameLayo
     private boolean mScreenshot;
     private boolean mClearAll;
     private boolean mLens;
+    private boolean mLock;
 
     public OverviewActionsView(Context context) {
         this(context, null);
@@ -142,6 +144,7 @@ public class OverviewActionsView<T extends OverlayUICallbacks> extends FrameLayo
         mScreenshot = prefs.getBoolean(KEY_RECENTS_SCREENSHOT, true);
         mClearAll = prefs.getBoolean(KEY_RECENTS_CLEAR_ALL, true);
         mLens = prefs.getBoolean(KEY_RECENTS_LENS, false);
+        mLock = prefs.getBoolean(KEY_RECENTS_LOCK, true);
         prefs.registerOnSharedPreferenceChangeListener(this);
     }
 
@@ -168,6 +171,11 @@ public class OverviewActionsView<T extends OverlayUICallbacks> extends FrameLayo
         lens.setOnClickListener(this);
         lens.setVisibility(mLens && Utilities.isGSAEnabled(getContext()) ? VISIBLE : GONE);
         findViewById(R.id.lens_space).setVisibility(mLens && Utilities.isGSAEnabled(getContext()) ? VISIBLE : GONE);
+        
+        View actionLock = findViewById(R.id.action_lock);
+        actionLock.setOnClickListener(this);
+        actionLock.setVisibility(mLock ? VISIBLE : GONE);
+        findViewById(R.id.action_lock_space).setVisibility(mLock ? VISIBLE : GONE);
 
         mSplitButton = findViewById(R.id.action_split);
         mSplitButton.setOnClickListener(this);
@@ -220,6 +228,8 @@ public class OverviewActionsView<T extends OverlayUICallbacks> extends FrameLayo
             mClearAll = prefs.getBoolean(KEY_RECENTS_CLEAR_ALL, true);
         } else if (key.equals(KEY_RECENTS_LENS)) {
             mLens = prefs.getBoolean(KEY_RECENTS_LENS, false);
+        } else if (key.equals(KEY_RECENTS_LOCK)) {
+            mLock = prefs.getBoolean(KEY_RECENTS_LOCK, false);
         }
         updateVisibilities();
     }
