@@ -280,6 +280,22 @@ public class QuickstepLauncher extends Launcher implements RecentsViewContainer 
         }
     };
 
+    private StateListener noStatusBarStateListener = new StateManager.StateListener<LauncherState>() {
+        @Override
+        public void onStateTransitionStart(LauncherState toState) {
+            if (toState == OVERVIEW) {
+                getWindow().getDecorView().getWindowInsetsController().show(WindowInsetsCompat.Type.statusBars());
+            }
+        }
+
+        @Override
+        public void onStateTransitionComplete(LauncherState finalState) {
+            if (finalState != OVERVIEW) {
+                getWindow().getDecorView().getWindowInsetsController().hide(WindowInsetsCompat.Type.statusBars());
+            }
+        }
+    };
+
     @Override
     protected LauncherOverlayManager getDefaultOverlay() {
         return new OverlayCallbackImpl(this);
