@@ -193,6 +193,9 @@ public final class Utilities {
     public static final String KEY_SHOW_QUICKSPACE_WEATHER_CITY = "pref_quickspace_weather_city";
     public static final String KEY_SHOW_QUICKSPACE_WEATHER_TEXT = "pref_quickspace_weather_text";
     public static final String KEY_BLUR_DEPTH = "pref_blur_depth";
+    public static final String KEY_RECENTS_OPACITY = "pref_recents_opacity";
+    public static final String KEY_APP_DRAWER_OPACITY = "pref_app_drawer_opacity";
+
 
     /**
      * Returns true if theme is dark.
@@ -1163,5 +1166,15 @@ public final class Utilities {
         SharedPreferences prefs = LauncherPrefs.getPrefs(context.getApplicationContext());
         return prefs.getInt(KEY_BLUR_DEPTH,
                 (int) context.getResources().getDimension(R.dimen.max_depth_blur_radius));
+    }
+
+    public static int getRecentsOpacity(Context context) {
+        SharedPreferences prefs = LauncherPrefs.getPrefs(context.getApplicationContext());
+        return prefs.getInt(KEY_RECENTS_OPACITY, 40);
+    }
+
+    public static int getAllAppsOpacity(Context context) {
+        SharedPreferences prefs = LauncherPrefs.getPrefs(context.getApplicationContext());
+        return prefs.getInt(KEY_APP_DRAWER_OPACITY, 80);
     }
 }
