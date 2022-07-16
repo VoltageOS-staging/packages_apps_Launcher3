@@ -1084,4 +1084,8 @@ public final class Utilities {
     public static boolean isMusicSearchEnabled(Context context) {
         return isGSAEnabled(context) && LauncherPrefs.DOCK_MUSIC_SEARCH.get(context);
     }
+
+    public static int getBlurRadius(Context context) {
+        return LauncherPrefs.BLUR_DEPTH.get(context);
+    }
 }
