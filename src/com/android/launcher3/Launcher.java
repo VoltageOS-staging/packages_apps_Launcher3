@@ -460,6 +460,7 @@ public class Launcher extends StatefulActivity<LauncherState>
          	    case Utilities.KEY_SHOW_QUICKSPACE_PSONALITY:
 	            case Utilities.KEY_SHOW_QUICKSPACE_WEATHER_CITY:
 	            case Utilities.KEY_SHOW_QUICKSPACE_WEATHER_TEXT:
+		    case Utilities.KEY_BLUR_DEPTH:
                         mNeedsRestart = true;
                         break;
                     default:
