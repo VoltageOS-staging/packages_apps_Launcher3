@@ -34,6 +34,8 @@ import com.android.launcher3.util.MainThreadInitializedObject;
 import com.android.launcher3.util.SafeCloseable;
 import com.android.launcher3.util.SimpleBroadcastReceiver;
 
+import ink.kaleidoscope.ParallelSpaceManager;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -86,7 +88,8 @@ public class UserCache implements SafeCloseable {
                 ACTION_PROFILE_ADDED,
                 ACTION_PROFILE_REMOVED,
                 ACTION_PROFILE_UNLOCKED,
-                ACTION_PROFILE_LOCKED);
+                ACTION_PROFILE_LOCKED,
+                Intent.ACTION_PARALLEL_SPACE_CHANGED);
         updateCache();
     }
 
@@ -146,6 +149,7 @@ public class UserCache implements SafeCloseable {
     private static Map<UserHandle, Long> queryAllUsers(UserManager userManager) {
         Map<UserHandle, Long> users = new ArrayMap<>();
         List<UserHandle> usersActual = userManager.getUserProfiles();
+        usersActual.addAll(ParallelSpaceManager.getInstance().getParallelUserHandles());
         if (usersActual != null) {
             for (UserHandle user : usersActual) {
                 long serial = userManager.getSerialNumberForUser(user);
