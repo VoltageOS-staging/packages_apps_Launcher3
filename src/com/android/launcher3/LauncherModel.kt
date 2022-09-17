@@ -72,7 +72,7 @@ import javax.inject.Provider
 class LauncherModel
 @Inject
 constructor(
-    @ApplicationContext private val context: Context,
+    @ApplicationContext val context: Context,
     private val taskControllerProvider: Provider<ModelTaskController>,
     private val iconCache: IconCache,
     private val prefs: LauncherPrefs,

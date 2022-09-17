@@ -38,16 +38,6 @@ constructor(
     private val widgetHelper = WidgetManagerHelper(context)
 
     fun inflateAppWidget(item: LauncherAppWidgetInfo): InflationResult {
-        if (item.hasOptionFlag(LauncherAppWidgetInfo.OPTION_SEARCH_WIDGET)) {
-            item.providerName = QsbContainerView.getSearchComponentName(context)
-            if (item.providerName == null) {
-                return InflationResult(
-                    TYPE_DELETE,
-                    reason = "search widget removed because search component cannot be found",
-                    restoreErrorType = RestoreError.NO_SEARCH_WIDGET,
-                )
-            }
-        }
         if (isSafeModeEnabled) return InflationResult(TYPE_PENDING)
 
         val appWidgetInfo: LauncherAppWidgetProviderInfo?
