@@ -391,7 +391,6 @@ public class TaskbarManager implements OnSharedPreferenceChangeListener {
     public void onUserUnlocked() {
         mUserUnlocked = true;
         DisplayController.INSTANCE.get(mContext).addChangeListener(mRecreationListener);
-        LauncherAppState.getIDP(mContext).addOnChangeListener(mIdpChangeListener);
         SharedPreferences prefs = LauncherPrefs.getPrefs(mContext);
         prefs.registerOnSharedPreferenceChangeListener(this);
         recreateTaskbar();
