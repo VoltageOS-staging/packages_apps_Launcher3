@@ -2120,14 +2120,14 @@ public abstract class AbsSwipeUpHandler<T extends StatefulActivity<S>,
                 mRecentsAnimationController.detachNavigationBarFromApp(true);
                 if (mRecentsView.getLandScape()) {
             	    mRecentsView.switchToScreenshot(() -> {
-                	    mRecentsView.finishRecentsAnimation(true /* toRecents */, false /* shouldPip */,
+                	    mRecentsView.finishRecentsAnimation(mRecentsView.isScrolledFinished() /* toRecents */, false /* shouldPip */,
                             null);
             	    });
                 }
             }
         }
     }
-
+}
     private void finishCurrentTransitionToHome() {
         if (!hasTargets() || mRecentsAnimationController == null) {
             // If there are no targets or the animation not started, then there is nothing to finish
