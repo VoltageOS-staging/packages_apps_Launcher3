@@ -200,6 +200,9 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         mPersonalMatcher = ItemInfoMatcher.ofCurrentOrDualUser(userManager, Process.myUserHandle());
         mAllAppsStore = new AllAppsStore<>(mActivityContext);
 
+        mBottomSheetBackgroundColor = mScrimColor;
+        mBottomSheetBackgroundAlpha = Color.alpha(mBottomSheetBackgroundColor) / 255.0f;
+
         mHeaderThreshold = getResources().getDimensionPixelSize(
                 R.dimen.dynamic_grid_cell_border_spacing);
         mHeaderProtectionColor = Themes.getAttrColor(context, R.attr.allappsHeaderProtectionColor);
@@ -322,16 +325,6 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
                 0,
                 0 // Bottom left
         };
-        if (Flags.allAppsBlur()) {
-            int resId = Utilities.isDarkTheme(getContext())
-                    ? android.R.color.system_accent1_800 : android.R.color.system_accent1_100;
-            int layerAbove = ColorUtils.setAlphaComponent(getResources().getColor(resId, null),
-                    (int) (0.4f * 255));
-            int layerBelow = ColorUtils.setAlphaComponent(Color.WHITE, (int) (0.1f * 255));
-            mBottomSheetBackgroundColor = ColorUtils.compositeColors(layerAbove, layerBelow);
-        } else {
-            mBottomSheetBackgroundColor = getContext().getColor(R.color.materialColorSurfaceDim);
-        }
         mBottomSheetBackgroundAlpha = Color.alpha(mBottomSheetBackgroundColor) / 255.0f;
         updateBackgroundVisibility(mActivityContext.getDeviceProfile());
         mSearchUiManager.initializeSearch(this);
