@@ -318,7 +318,6 @@ public class QuickEventsController {
         } else if (getLuckyNumber(13) == 7) {
             psaLength = mPSARandomStr.length - 1;
             mEventTitleSub = mPSARandomStr[getLuckyNumber(0, psaLength)];
-            mEventSubIcon = R.drawable.ic_quickspace_crdroid;
             mIsQuickEvent = true;
             return;
         }
