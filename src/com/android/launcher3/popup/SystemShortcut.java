@@ -43,6 +43,7 @@ import com.android.launcher3.AbstractFloatingView;
 import com.android.launcher3.AbstractFloatingViewHelper;
 import com.android.launcher3.BaseActivity;
 import com.android.launcher3.Flags;
+import com.android.launcher3.Launcher;
 import com.android.launcher3.LauncherSettings;
 import com.android.launcher3.R;
 import com.android.launcher3.SecondaryDropTarget;
@@ -209,18 +210,21 @@ public abstract class SystemShortcut<T extends ActivityContext> extends ItemInfo
             InfoBottomSheet cbs;
             Rect sourceBounds = Utilities.getViewBounds(view);
             ActivityOptionsWrapper options = mTarget.getActivityLaunchOptions(view, mItemInfo);
-            // Dismiss the taskMenu when the app launch animation is complete
-            options.onEndCallback.add(this::dismissTaskMenuView);
-            try {
-                cbs = (InfoBottomSheet) mTarget.getLayoutInflater().inflate(
-                        R.layout.app_info_bottom_sheet,
-                        mTarget.getDragLayer(),
-                        false);
-                cbs.configureBottomSheet(sourceBounds, view.getContext());
-                cbs.populateAndShow(mItemInfo);
-            } catch (InflateException e) {
+            if (Launcher.getLauncher(view.getContext()).getStateManager().getState().isRecentsViewVisible) {
                 PackageManagerHelper.startDetailsActivityForInfo(view.getContext(), mItemInfo,
                         sourceBounds, options.toBundle());
+            } else {
+                try {
+                    cbs = (InfoBottomSheet) mTarget.getLayoutInflater().inflate(
+                            R.layout.app_info_bottom_sheet,
+                            mTarget.getDragLayer(),
+                            false);
+                    cbs.configureBottomSheet(sourceBounds, view.getContext());
+                    cbs.populateAndShow(mItemInfo);
+                } catch (InflateException e) {
+                    PackageManagerHelper.startDetailsActivityForInfo(view.getContext(), mItemInfo,
+                            sourceBounds, options.toBundle());
+                }
             }
             mTarget.getStatsLogManager().logger().withItemInfo(mItemInfo)
                     .log(LAUNCHER_SYSTEM_SHORTCUT_APP_INFO_TAP);
