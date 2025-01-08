@@ -52,6 +52,7 @@ import com.android.launcher3.popup.ArrowPopup;
 import com.android.launcher3.shortcuts.DeepShortcutView;
 import com.android.launcher3.testing.TestLogging;
 import com.android.launcher3.testing.shared.TestProtocol;
+import com.android.launcher3.wallpaper.WallpaperService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -181,13 +182,22 @@ public class OptionsPopupView<T extends Context & ActivityContext> extends Arrow
         if (activityContext == null) {
             return null;
         }
+
+        final Context context = (Context) activityContext;
+        final List<com.android.launcher3.wallpaper.Wallpaper> wallpapers = 
+                WallpaperService.INSTANCE.get(context).getTopWallpapers();
+        final boolean isEmpty = wallpapers.isEmpty();
+        android.util.Log.d("OptionsPopupView", "Wallpapers in DB: " + wallpapers.size() + ", isEmpty: " + isEmpty);
+        var layout = isEmpty ? R.layout.longpress_options_menu : R.layout.wallpaper_options_popup;
+
         OptionsPopupView<T> popup = (OptionsPopupView<T>) activityContext.getLayoutInflater()
-                .inflate(R.layout.longpress_options_menu, activityContext.getDragLayer(), false);
+                .inflate(layout, activityContext.getDragLayer(), false);
         popup.mTargetRect = targetRect;
         popup.setShouldAddArrow(shouldAddArrow);
 
         for (OptionItem item : items) {
-            DeepShortcutView view = popup.inflateAndAdd(R.layout.system_shortcut, popup);
+            var deepLayout = isEmpty ? R.layout.system_shortcut : R.layout.wallpaper_options_popup_item;
+            DeepShortcutView view = popup.inflateAndAdd(deepLayout, popup);
             if (width > 0) {
                 view.getLayoutParams().width = width;
             }

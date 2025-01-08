@@ -16,8 +16,36 @@
 
 package com.android.launcher3;
 
+import android.app.WallpaperManager;
+import android.os.Bundle;
+
 import com.android.launcher3.uioverrides.QuickstepLauncher;
+import com.android.launcher3.wallpaper.WallpaperDatabase;
+import com.android.launcher3.wallpaper.WallpaperService;
 
 public class CustomLauncher extends QuickstepLauncher {
+
+    @Override
+    public void onCreate(Bundle bundle) {
+        super.onCreate(bundle);
+        WallpaperDatabase.INSTANCE.get(this).checkpointSync();
+        
+        // Save current wallpaper on first launch if database is empty
+        new Thread(() -> {
+            try {
+                if (WallpaperService.INSTANCE.get(this).getTopWallpapers().isEmpty()) {
+                    WallpaperManager wallpaperManager = WallpaperManager.getInstance(this);
+                    WallpaperService.INSTANCE.get(this).saveWallpaper(wallpaperManager);
+                }
+            } catch (Exception e) {
+                android.util.Log.e("CustomLauncher", "Error saving initial wallpaper", e);
+            }
+        }).start();
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+    }
 
 }
