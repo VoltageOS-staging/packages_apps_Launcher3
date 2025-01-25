@@ -1128,4 +1128,8 @@ public final class Utilities {
     public static void startLmoFreeform(Context context, ComponentName activity) {
         startLmoFreeform(context, activity, UserHandle.myUserId());
     }
+
+    public static boolean blurBackgroundAtAppLaunch(Context context) {
+        return LauncherPrefs.BLUR_BACKGROUND_AT_APP_LAUNCH.get(context);
+    }
 }
