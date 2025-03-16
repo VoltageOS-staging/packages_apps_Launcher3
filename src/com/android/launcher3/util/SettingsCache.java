@@ -145,6 +145,17 @@ public class SettingsCache extends ContentObserver {
         UI_HELPER_EXECUTOR.execute(() -> mResolver.registerContentObserver(uri, false, this));
     }
 
+    public int getValueInt(Uri keyUri, int defaultValue) {
+        String key = keyUri.getLastPathSegment();
+        if (keyUri.toString().startsWith(SYSTEM_URI_PREFIX)) {
+            return Settings.System.getInt(mResolver, key, defaultValue);
+        } else if (keyUri.toString().startsWith(GLOBAL_URI_PREFIX)) {
+            return Settings.Global.getInt(mResolver, key, defaultValue);
+        } else { // SETTING_SECURE
+            return Settings.Secure.getInt(mResolver, key, defaultValue);
+        }
+    }
+
     /**
      * Does not de-dupe if you add same listeners for the same key multiple times.
      * Unregister once complete using {@link #unregister(Uri, OnChangeListener)}
