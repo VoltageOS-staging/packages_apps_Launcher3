@@ -337,6 +337,9 @@ public class StateManager<S extends BaseState<S>, T extends StatefulContainer<S>
      */
     public void prepareForAtomicAnimation(S fromState, S toState,
             StateAnimationConfig config) {
+        if (toState == NORMAL) {
+            com.android.launcher3.LauncherAppState.INSTANCE.executeIfCreated(app -> app.checkIfRestartNeeded());
+        }
         mAtomicAnimationFactory.prepareForAtomicAnimation(fromState, toState, config);
     }
 
