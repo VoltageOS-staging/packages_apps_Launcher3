@@ -19,6 +19,8 @@ import static com.android.launcher3.util.Executors.MAIN_EXECUTOR;
 
 import android.annotation.NonNull;
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.os.SystemClock;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.Icon;
 import android.os.Handler;
@@ -59,6 +61,7 @@ public class QuickspaceController implements OmniJawsClient.OmniJawsObserver,
     private OmniJawsClient.WeatherInfo mWeatherInfo;
     private Drawable mConditionImage;
 
+    private static final String PREF_KEY_LAST_PSA_UPDATE_TIME = "pref_last_psa_update_time";
     private static final long PSA_UPDATE_DELAY_MS = 3 * 60 * 1000;
 
     private final Handler mHandler = MAIN_EXECUTOR.getHandler();
@@ -102,6 +105,9 @@ public class QuickspaceController implements OmniJawsClient.OmniJawsObserver,
         mPsaRunnable = new Runnable() {
             @Override
             public void run() {
+                long now = SystemClock.elapsedRealtime();
+                getPrefs().edit().putLong(PREF_KEY_LAST_PSA_UPDATE_TIME, now).apply();
+
                 if (mEventsController != null) {
                     mEventsController.updatePsonality();
                     notifyListeners();
@@ -122,7 +128,20 @@ public class QuickspaceController implements OmniJawsClient.OmniJawsObserver,
         addWeatherProvider();
         MSMHProxy.INSTANCE(mContext).addMediaMetadataListener(this);
         mEventsController.initQuickEvents();
-        mHandler.post(mPsaRunnable);
+        long lastUpdateTime = getPrefs().getLong(PREF_KEY_LAST_PSA_UPDATE_TIME, 0);
+        long now = SystemClock.elapsedRealtime();
+        long timeSinceLastUpdate = now - lastUpdateTime;
+
+        if (lastUpdateTime == 0 || timeSinceLastUpdate >= PSA_UPDATE_DELAY_MS) {
+            // Time is up or it's the first run, execute immediately.
+            mHandler.post(mPsaRunnable);
+        } else {
+            // Time is not up yet, schedule for the remaining time.
+            long remainingDelay = PSA_UPDATE_DELAY_MS - timeSinceLastUpdate;
+            mHandler.postDelayed(mPsaRunnable, remainingDelay);
+        }
+
+
         listener.onDataUpdated();
     }
 
@@ -235,6 +254,10 @@ public class QuickspaceController implements OmniJawsClient.OmniJawsObserver,
         mWeatherClient = null;
         mWeatherInfo = null;
         mConditionImage = null;
+    }
+
+    private SharedPreferences getPrefs() {
+        return mContext.getSharedPreferences("com.android.launcher3.quickspace.prefs", Context.MODE_PRIVATE);
     }
 
     @Override
