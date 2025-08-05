@@ -176,7 +176,6 @@ public class OverviewState extends LauncherState {
 		  Themes.getAttrColor(launcher, R.attr.overviewScrimColor), Utilities.getRecentsOpacity(launcher) * 255 / 100);
     }
 
-    @Override
     public float getOverviewScrimCornerRadius(Launcher launcher) {
         // Force square corners for the scrim to prevent wallpaper peek-through when transparent.
         return 0f;

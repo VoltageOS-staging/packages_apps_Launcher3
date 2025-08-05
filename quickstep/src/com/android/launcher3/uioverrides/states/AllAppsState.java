@@ -220,7 +220,6 @@ public int getWorkspaceScrimColor(Launcher launcher) {
     return launcher.getResources().getColor(R.color.widgets_picker_scrim);
 }
 
-@Override
 public float getOverviewScrimCornerRadius(Launcher launcher) {
     // Force square corners for the scrim to prevent wallpaper peek-through when transparent.
     return 0f;
