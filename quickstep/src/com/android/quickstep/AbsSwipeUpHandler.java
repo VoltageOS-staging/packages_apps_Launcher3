@@ -2719,7 +2719,7 @@ public abstract class AbsSwipeUpHandler<
                         transformParams, taskViewSimulator, progress)) {
                     continue;
                 }
-                taskViewSimulator.apply(transformParams);
+                com.android.launcher3.util.Executors.MAIN_EXECUTOR.execute(() -> taskViewSimulator.apply(transformParams));
             }
         }
     }
