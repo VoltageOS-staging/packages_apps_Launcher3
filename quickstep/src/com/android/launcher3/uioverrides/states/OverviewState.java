@@ -177,6 +177,12 @@ public class OverviewState extends LauncherState {
     }
 
     @Override
+    public float getOverviewScrimCornerRadius(Launcher launcher) {
+        // Force square corners for the scrim to prevent wallpaper peek-through when transparent.
+        return 0f;
+    }
+
+    @Override
     public boolean displayOverviewTasksAsGrid(DeviceProfile deviceProfile) {
         return deviceProfile.isTablet;
     }
