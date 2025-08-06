@@ -24,6 +24,7 @@ import android.graphics.drawable.Drawable;
 import android.text.TextUtils.TruncateAt;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
+import android.widget.TextClock;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AccelerateInterpolator;
@@ -54,6 +55,14 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     public ImageView mEventSubIcon;
     public ImageView mNowPlayingIcon;
     public TextView mEventTitleSub;
+
+    public TextView mQuickspaceDayOfWeek;
+    public TextClock mQuickspaceClock;
+    public TextView mQuickspaceDate;
+    public TextView mPSAMessage;
+    public ViewGroup mNowPlayingContent;
+    public TextView mNowPlayingText;
+
     public TextView mEventTitleSubColored;
     public TextView mGreetingsExt;
     public TextView mGreetingsExtClock;
@@ -72,6 +81,8 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     private QuickSpaceActionReceiver mActionReceiver;
     public QuickspaceController mController;
 
+    private int mCurrentStyle = -1;
+
     public QuickSpaceView(Context context, AttributeSet set) {
         super(context, set);
         mController = new QuickspaceController(context);
@@ -82,13 +93,27 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
 
     @Override
     public void onDataUpdated() {
-        boolean altUI = LauncherPrefs.SHOW_QUICKSPACE_ALT.get(getContext());
-        if (mEventTitle == null || mIsAlternateStyle != altUI) {
-            prepareLayout(altUI);
+        int style = Integer.parseInt(LauncherPrefs.QUICKSPACE_UI_STYLE.get(getContext()));
+        if (mEventTitle == null || mCurrentStyle != style) {
+            prepareLayout(style);
         }
         mIsQuickEvent = mController.isQuickEvent();
         mWeatherAvailable = mController.isWeatherAvailable();
-        loadDoubleLine(altUI);
+        updateView(style);
+    }
+
+    private void updateView(int style) {
+        switch (style) {
+            case 2:
+                loadLargeStyle();
+                break;
+            case 1: // Extended
+            case 0: // Default
+            default:
+                loadDoubleLine(style == 1);
+                break;
+        }
+
     }
 
     private final void loadDoubleLine(boolean useAlternativeQuickspaceUI) {
@@ -209,6 +234,35 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
         return mActionReceiver;
     }
 
+    private void loadLargeStyle() {
+        if (mQuickspaceDayOfWeek == null) return; // Views not inflated for this style
+
+        mQuickspaceDayOfWeek.setText(mController.getEventController().getDayOfWeek(getContext()));
+        mQuickspaceDate.setText(mController.getEventController().getShortDate(getContext()));
+
+        bindWeather(mWeatherContentSub, mWeatherTempSub, mWeatherIconSub);
+
+        boolean isNowPlaying = mController.getEventController().isNowPlaying();
+        if (isNowPlaying) {
+            mPSAMessage.setVisibility(View.GONE);
+            mNowPlayingContent.setVisibility(View.VISIBLE);
+            String nowPlaying = mController.getEventController().getTitle() + " - " + mController.getEventController().getActionTitle();
+            mNowPlayingText.setText(nowPlaying);
+            mNowPlayingContent.setOnClickListener(mController.getEventController().getAction());
+        } else {
+            mNowPlayingContent.setVisibility(View.GONE);
+            if (mIsQuickEvent && LauncherPrefs.SHOW_QUICKSPACE_PSONALITY.get(getContext())) {
+                mPSAMessage.setVisibility(View.VISIBLE);
+                mPSAMessage.setText(mController.getEventController().getActionTitle());
+                mPSAMessage.setOnClickListener(mController.getEventController().getAction());
+                maybeSetMarquee(mPSAMessage);
+            } else {
+                mPSAMessage.setVisibility(View.GONE);
+            }
+        }
+    }
+
+
     private final void loadViews() {
         mEventTitle = (TextView) findViewById(R.id.quick_event_title);
         mEventTitleSub = (TextView) findViewById(R.id.quick_event_title_sub);
@@ -219,21 +273,37 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
         mQuickspaceContent = (ViewGroup) findViewById(R.id.quickspace_content);
         mWeatherContentSub = (ViewGroup) findViewById(R.id.quick_event_weather_content);
         mWeatherTempSub = (TextView) findViewById(R.id.quick_event_weather_temp);
-        if (LauncherPrefs.SHOW_QUICKSPACE_ALT.get(getContext())) {
+        if (mCurrentStyle == 1) { // Extended style
             mGreetingsExtClock = (TextView) findViewById(R.id.extended_greetings_clock);
             mGreetingsExt = (TextView) findViewById(R.id.extended_greetings);
         }
+
+        if (mCurrentStyle == 2) { // Large style
+            mQuickspaceDayOfWeek = findViewById(R.id.quickspace_day_of_week);
+            mQuickspaceClock = findViewById(R.id.quickspace_clock);
+            mQuickspaceDate = findViewById(R.id.quickspace_date);
+            mPSAMessage = findViewById(R.id.quickspace_psa_message);
+            mNowPlayingContent = findViewById(R.id.now_playing_content);
+            mNowPlayingText = findViewById(R.id.now_playing_text);
+        }
     }
 
-    private void prepareLayout(boolean useAlternativeQuickspaceUI) {
-        mIsAlternateStyle = useAlternativeQuickspaceUI;
+    private void prepareLayout(int style) {
+        mCurrentStyle = style;
         int indexOfChild = indexOfChild(mQuickspaceContent);
         removeView(mQuickspaceContent);
-        if (useAlternativeQuickspaceUI) {
-            addView(LayoutInflater.from(getContext()).inflate(R.layout.quickspace_alternate_double, this, false), indexOfChild);
-        } else {
-            addView(LayoutInflater.from(getContext()).inflate(R.layout.quickspace_doubleline, this, false), indexOfChild);
+        int layoutId;
+        switch (style) {
+            case 1:
+                layoutId = R.layout.quickspace_alternate_double;
+                break;
+            case 2:
+                layoutId = R.layout.quickspace_large_style;
+                break;
+            default:
+                layoutId = R.layout.quickspace_doubleline;
         }
+        addView(LayoutInflater.from(getContext()).inflate(layoutId, this, false), indexOfChild);
 
         loadViews();
         getQuickSpaceView();
