@@ -16,11 +16,16 @@
 package com.android.launcher3.quickspace;
 
 import android.content.ActivityNotFoundException;
+import android.content.ContentUris;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
+import android.provider.AlarmClock;
+import android.provider.CalendarContract;
 import android.text.TextUtils.TruncateAt;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
@@ -180,6 +185,8 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
             }
         }
         bindWeather(mWeatherContentSub, mWeatherTempSub, mWeatherIconSub);
+        boolean hasGoogleApp = isPackageEnabled("com.google.android.googlequicksearchbox", getContext());
+        mWeatherContentSub.setOnClickListener(hasGoogleApp ? getActionReceiver().getWeatherAction() : null);
     }
 
     private void maybeSetMarquee(TextView tv) {
@@ -220,11 +227,9 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
             container.setVisibility(View.GONE);
             return;
         }
-        boolean hasGoogleApp = isPackageEnabled("com.google.android.googlequicksearchbox", getContext());
         if (container.getVisibility() != View.VISIBLE) {
             animateIn(container);
         }
-        container.setOnClickListener(hasGoogleApp ? getActionReceiver().getWeatherAction() : null);
         title.setText(weatherTemp);
         icon.setImageDrawable(mController.getWeatherIcon());
     }
@@ -249,6 +254,35 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
         mWeatherContentSub.setVisibility(View.VISIBLE);
 
         mDateWeatherRow.setVisibility(View.VISIBLE);
+
+        View.OnClickListener openClockListener = v -> {
+            try {
+                getContext().startActivity(new Intent(AlarmClock.ACTION_SHOW_ALARMS)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            } catch (ActivityNotFoundException e) {
+                e.printStackTrace();
+            }
+        };
+
+        View.OnClickListener openCalendarListener = v -> {
+            try {
+                Uri.Builder builder = CalendarContract.CONTENT_URI.buildUpon();
+                builder.appendPath("time");
+                ContentUris.appendId(builder, System.currentTimeMillis());
+                Intent intent = new Intent(Intent.ACTION_VIEW).setData(builder.build());
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(intent);
+            } catch (ActivityNotFoundException e) {
+                e.printStackTrace();
+            }
+        };
+
+        mQuickspaceClock.setOnClickListener(openClockListener);
+        mQuickspaceDayOfWeek.setOnClickListener(openClockListener); // Both clock and day open the Clock app
+        mQuickspaceDate.setOnClickListener(openCalendarListener);
+
+        boolean hasGoogleApp = isPackageEnabled("com.google.android.googlequicksearchbox", getContext());
+        mWeatherContentSub.setOnClickListener(hasGoogleApp ? getActionReceiver().getWeatherAction() : null);
 
         bindWeather(mWeatherContentSub, mWeatherTempSub, mWeatherIconSub);
 
