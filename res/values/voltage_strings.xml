@@ -230,6 +230,10 @@
     <item>2</item>
 </string-array>
 
+<!-- Quickspace clock accent -->
+<string name="quickspace_voltage_accent_title">Accent colored clock</string>
+<string name="quickspace_voltage_accent_summary">Color the first number of the clock in Voltage style</string>
+
     <!-- QuickSpace: QuickEvent: Greetings -->
     <string name="quickspace_grt_morning">Good morning.</string>
     <string name="quickspace_grt_evening">Good evening.</string>
