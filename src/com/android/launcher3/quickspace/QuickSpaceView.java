@@ -24,7 +24,6 @@ import android.graphics.drawable.Drawable;
 import android.text.TextUtils.TruncateAt;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
-import android.widget.TextClock;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AccelerateInterpolator;
@@ -37,6 +36,7 @@ import com.android.launcher3.BubbleTextView;
 import com.android.launcher3.LauncherPrefs;
 import com.android.launcher3.R;
 import com.android.launcher3.model.data.ItemInfo;
+import com.android.launcher3.quickspace.views.AccentedTextClock;
 import com.android.launcher3.util.Themes;
 
 import com.android.launcher3.quickspace.QuickspaceController.OnDataListener;
@@ -57,7 +57,7 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     public TextView mEventTitleSub;
 
     public TextView mQuickspaceDayOfWeek;
-    public TextClock mQuickspaceClock;
+    public AccentedTextClock mQuickspaceClock;
     public TextView mQuickspaceDate;
     public TextView mPSAMessage;
     public ViewGroup mNowPlayingContent;
@@ -239,6 +239,11 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     private void loadLargeStyle() {
         if (mQuickspaceDayOfWeek == null) return; // Views not inflated for this style
 
+        boolean accentEnabled = LauncherPrefs.QUICKSPACE_VOLTAGE_ACCENT.get(getContext());
+        if (mQuickspaceClock != null) {
+            mQuickspaceClock.setAccentEnabled(accentEnabled);
+        }
+
         mQuickspaceDayOfWeek.setText(QuickEventsController.getDayOfWeek(getContext()));
         mQuickspaceDate.setText(mController.getEventController().getShortDate(getContext()));
         mWeatherContentSub.setVisibility(View.VISIBLE);
@@ -288,7 +293,7 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
 
         if (mCurrentStyle == 2) { // Large style
             mQuickspaceDayOfWeek = findViewById(R.id.quickspace_day_of_week);
-            mQuickspaceClock = findViewById(R.id.quickspace_clock);
+            mQuickspaceClock = (AccentedTextClock) findViewById(R.id.quickspace_clock);
             mQuickspaceDate = findViewById(R.id.quickspace_date);
             mPSAMessage = findViewById(R.id.quickspace_psa_message);
             mNowPlayingContent = findViewById(R.id.now_playing_content);
@@ -433,6 +438,16 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
         mWeatherIconSub = null;
         mWeatherTempSub = null;
         mEventTitle = null;
+        
+        // Nullify Voltage style views
+        mQuickspaceDayOfWeek = null;
+        mQuickspaceClock = null;
+        mQuickspaceDate = null;
+        mPSAMessage = null;
+        mNowPlayingContent = null;
+        mNowPlayingText = null;
+        mDateWeatherRow = null;
+        mContextualInfoRow = null;
     }
 
     public void setPadding(int n, int n2, int n3, int n4) {
