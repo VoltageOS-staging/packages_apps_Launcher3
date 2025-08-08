@@ -82,6 +82,7 @@ public class PreviewItemManager {
 
     private final Context mContext;
     private final FolderIcon mIcon;
+
     @VisibleForTesting
     public final int mIconSize;
 
