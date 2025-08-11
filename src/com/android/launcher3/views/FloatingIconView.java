@@ -691,10 +691,12 @@ public class FloatingIconView extends FrameLayout implements
     }
 
     private void finish(DragLayer dragLayer) {
-        ((ViewGroup) dragLayer.getParent()).removeView(this);
-        dragLayer.removeView(mListenerView);
-        recycle();
-        mLauncher.getViewCache().recycleView(R.layout.floating_icon_view, this);
+        com.android.launcher3.util.Executors.MAIN_EXECUTOR.execute(() -> {
+            ((ViewGroup) dragLayer.getParent()).removeView(this);
+            dragLayer.removeView(mListenerView);
+            recycle();
+            mLauncher.getViewCache().recycleView(R.layout.floating_icon_view, this);
+        });
     }
 
     private void recycle() {
