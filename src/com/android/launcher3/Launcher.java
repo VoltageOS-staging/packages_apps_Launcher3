@@ -1267,7 +1267,10 @@ public class Launcher extends StatefulActivity<LauncherState>
     }
 
     @Override
-    public void onStateSetEnd(LauncherState state) {
+public void onStateSetEnd(LauncherState state) {
+    // This callback can be invoked from a background thread, so all UI operations
+    // must be posted to the main thread.
+    runOnUiThread(() -> {
         super.onStateSetEnd(state);
         getAppWidgetHolder().setStateIsNormal(state == LauncherState.NORMAL);
         getWorkspace().setClipChildren(!state.hasFlag(FLAG_MULTI_PAGE));
@@ -1298,9 +1301,9 @@ public class Launcher extends StatefulActivity<LauncherState>
             getAppsView().getSearchUiManager().focusSearchField();
         }
 
-        // Set screen title for Talkback
         setTitle(state.getTitle());
-    }
+    });
+}
 
     /**
      * Returns {@link EventEnum} that should be logged when Launcher exists from AllApps state.
