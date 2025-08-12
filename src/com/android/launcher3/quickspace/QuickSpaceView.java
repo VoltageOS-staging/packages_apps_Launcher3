@@ -294,6 +294,7 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
             String nowPlaying = mController.getEventController().getTitle() + " - " + mController.getEventController().getActionTitle();
             mNowPlayingText.setText(nowPlaying);
             mNowPlayingContent.setOnClickListener(mController.getEventController().getAction());
+            maybeSetMarquee(mNowPlayingText);
         } else {
             mNowPlayingContent.setVisibility(View.GONE);
             if (mIsQuickEvent && LauncherPrefs.SHOW_QUICKSPACE_PSONALITY.get(getContext())) {
