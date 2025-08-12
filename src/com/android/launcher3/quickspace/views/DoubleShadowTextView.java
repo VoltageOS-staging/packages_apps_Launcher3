@@ -72,13 +72,12 @@ public class DoubleShadowTextView extends TextView {
 
     @Override
     public void onDraw(Canvas canvas) {
-        // If text is transparent or shadow alpha is 0, don't draw any shadow
-        if (skipDoubleShadow()) {
-            super.onDraw(canvas);
-            return;
-        }
-        getPaint().setShadowLayer(mShadowInfo.getKeyShadowBlur(), 0, mShadowInfo.getKeyShadowOffsetX(), mShadowInfo.getKeyShadowColor());
-        super.onDraw(canvas);
+	if (skipDoubleShadow()) {
+    	    super.onDraw(canvas);
+    	    return;
+	}
+	getPaint().setShadowLayer(mShadowInfo.getKeyShadowBlur(), mShadowInfo.getKeyShadowOffsetX(), mShadowInfo.getKeyShadowOffsetY(), mShadowInfo.getKeyShadowColor());
+	super.onDraw(canvas);
     }
 
     // Multiplies the alpha of shadowColor by textAlpha.
