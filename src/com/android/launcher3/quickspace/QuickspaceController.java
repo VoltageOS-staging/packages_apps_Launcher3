@@ -452,6 +452,12 @@ public String getWeatherTemp() {
             return; // Silently return if media not initialized yet
         }
         
+       // Check if mEventsController is null before proceeding
+       if (mEventsController == null) {
+           Log.w(TAG, "EventsController is null, skipping media update");
+           return;
+       }
+
         // Run media processing on background thread
         MODEL_EXECUTOR.execute(() -> {
             MediaMetadata mediaMetadata = MSMHProxy.INSTANCE(mContext).getCurrentMediaMetadata();
@@ -461,10 +467,12 @@ public String getWeatherTemp() {
             
             // Update on main thread
             MAIN_EXECUTOR.execute(() -> {
+               if (mEventsController != null) {
                 mEventsController.setMediaInfo(trackTitle, trackArtist, isPlaying);
                 mEventsController.updateQuickEvents();
                 notifyListeners();
-            });
+               } 
+           });
         });
     }
 
