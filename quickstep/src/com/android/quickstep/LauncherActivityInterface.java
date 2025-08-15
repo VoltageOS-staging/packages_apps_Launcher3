@@ -93,7 +93,7 @@ public final class LauncherActivityInterface extends
         MAIN_EXECUTOR.getHandler().post(launcher.getStateManager()::reapplyState);
 
         launcher.getRootView().setForceHideBackArrow(false);
-        notifyRecentsOfOrientation();
+        MAIN_EXECUTOR.execute(this::notifyRecentsOfOrientation);
     }
 
     @Override
