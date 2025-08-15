@@ -400,7 +400,7 @@ class WorkspaceItemProcessor(
             }
             c.checkAndAddItem(info, bgDataModel, memoryLogger)
         } else {
-            throw RuntimeException("Unexpected null WorkspaceItemInfo")
+            Log.e(TAG, "Unexpected null WorkspaceItemInfo for item id=${c.id}, skipping.")
         }
     }
 
