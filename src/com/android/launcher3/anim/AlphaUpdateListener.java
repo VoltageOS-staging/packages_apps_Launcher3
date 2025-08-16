@@ -49,7 +49,8 @@ public class AlphaUpdateListener extends AnimatorListenerAdapter
     @Override
     public void onAnimationStart(Animator arg0) {
         // We want the views to be visible for animation, so fade-in/out is visible
-        mView.setVisibility(View.VISIBLE);
+        // FIX: Post this operation to the main thread to avoid CalledFromWrongThreadException.
+        mView.post(() -> mView.setVisibility(View.VISIBLE));
     }
 
     public static void updateVisibility(View view) {
@@ -63,19 +64,25 @@ public class AlphaUpdateListener extends AnimatorListenerAdapter
      * @param hiddenVisibility {@link View#GONE} or {@link View#INVISIBLE}
      */
     public static void updateVisibility(View view, int hiddenVisibility) {
+        // Reading properties like alpha and visibility is generally safe from any thread.
+        // We only need to switch to the main thread when we are about to *write* a UI property.
         if (view.getAlpha() < ALPHA_CUTOFF_THRESHOLD && view.getVisibility() != hiddenVisibility) {
-            view.setVisibility(hiddenVisibility);
+            // FIX: Post the setVisibility call to the main thread.
+            view.post(() -> view.setVisibility(hiddenVisibility));
         } else if (view.getAlpha() > ALPHA_CUTOFF_THRESHOLD
                 && view.getVisibility() != View.VISIBLE) {
-            if (view instanceof ViewGroup) {
-                ViewGroup viewGroup = ((ViewGroup) view);
-                int oldFocusability = viewGroup.getDescendantFocusability();
-                viewGroup.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
-                viewGroup.setVisibility(View.VISIBLE);
-                viewGroup.setDescendantFocusability(oldFocusability);
-            } else {
-                view.setVisibility(View.VISIBLE);
-            }
+            // FIX: Post the entire block of UI modifications to the main thread.
+            view.post(() -> {
+                if (view instanceof ViewGroup) {
+                    ViewGroup viewGroup = ((ViewGroup) view);
+                    int oldFocusability = viewGroup.getDescendantFocusability();
+                    viewGroup.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+                    viewGroup.setVisibility(View.VISIBLE);
+                    viewGroup.setDescendantFocusability(oldFocusability);
+                } else {
+                    view.setVisibility(View.VISIBLE);
+                }
+            });
         }
     }
 }
