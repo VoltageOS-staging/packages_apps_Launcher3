@@ -35,6 +35,11 @@ import android.view.animation.AccelerateInterpolator;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.view.ViewPropertyAnimator;
+import android.os.Handler;
+import android.os.Looper;
+import java.util.HashSet;
+import java.util.Set;
 import android.widget.TextView;
 
 import com.android.launcher3.BubbleTextView;
@@ -67,7 +72,6 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     public TextView mPSAMessage;
     public ViewGroup mNowPlayingContent;
     public TextView mNowPlayingText;
-    public ViewGroup mDateWeatherRow;
     public ViewGroup mContextualInfoRow;
 
     public TextView mEventTitleSubColored;
@@ -84,6 +88,23 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     public boolean mAttached;
 
     private boolean mIsAlternateStyle = false;
+    private boolean mLastAccentState;
+    private boolean mViewsLoaded = false;
+    private String mLastEventTitle = "";
+    private String mLastWeatherTemp = "";
+    private boolean mLastNowPlayingState = false;
+    private String mLastPSAMessage = "";
+    private String mLastActionTitle = "";
+
+    private ViewPropertyAnimator mCurrentAnimateIn;
+    private ViewPropertyAnimator mCurrentAnimateOut;
+    private final Set<Runnable> mPendingUpdates = new HashSet<>();
+    private final Handler mUpdateHandler = new Handler(Looper.getMainLooper());
+    private int mLastEventTitleHash = 0;
+    private int mLastWeatherTempHash = 0;
+    private int mLastActionTitleHash = 0;
+    private long mLastUpdateTime = 0;
+    private static final long MIN_UPDATE_INTERVAL = 1000;
 
     private QuickSpaceActionReceiver mActionReceiver;
     public QuickspaceController mController;
@@ -101,18 +122,23 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     @Override
     public void onDataUpdated() {
         int style = Integer.parseInt(LauncherPrefs.QUICKSPACE_UI_STYLE.get(getContext()));
-        if (mEventTitle == null || mCurrentStyle != style) {
+        boolean styleChanged = mCurrentStyle != style;
+        if (!mViewsLoaded || styleChanged) {
             prepareLayout(style);
+            mViewsLoaded = true;
         }
         mIsQuickEvent = mController.isQuickEvent();
         mWeatherAvailable = mController.isWeatherAvailable();
-        updateView(style);
+
+        if (styleChanged || !mViewsLoaded || hasDataChanged()) {
+            updateView(style);
+        }
     }
 
     private void updateView(int style) {
         switch (style) {
             case 2:
-                loadLargeStyle();
+                post(() -> loadLargeStyle());
                 break;
             case 1: // Extended
             case 0: // Default
@@ -123,35 +149,99 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
 
     }
 
+    private void scheduleUpdate(Runnable update) {
+        if (!mPendingUpdates.contains(update)) {
+            mPendingUpdates.add(update);
+            mUpdateHandler.post(() -> {
+                if (mPendingUpdates.remove(update)) {
+                    update.run();
+                }
+            });
+        }
+    }
+
+    private boolean hasDataChanged() {
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - mLastUpdateTime < MIN_UPDATE_INTERVAL) {
+            return false;
+        }
+
+        if (mController == null || mController.getEventController() == null) {
+            return false;
+        }
+
+        String currentEventTitle = mController.getEventController().getTitle();
+        String currentWeatherTemp = mController.getWeatherTemp();
+        boolean currentNowPlayingState = mController.getEventController().isNowPlaying();
+        String currentActionTitle = mController.getEventController().getActionTitle();
+        
+        int eventTitleHash = currentEventTitle != null ? currentEventTitle.hashCode() : 0;
+        int weatherTempHash = currentWeatherTemp != null ? currentWeatherTemp.hashCode() : 0;
+        int actionTitleHash = currentActionTitle != null ? currentActionTitle.hashCode() : 0;
+        
+        boolean changed = mLastEventTitleHash != eventTitleHash ||
+                         mLastWeatherTempHash != weatherTempHash ||
+                         mLastNowPlayingState != currentNowPlayingState ||
+                         mLastActionTitleHash != actionTitleHash;
+
+        if (changed) {
+            mLastEventTitleHash = eventTitleHash;
+            mLastWeatherTempHash = weatherTempHash;
+            mLastNowPlayingState = currentNowPlayingState;
+            mLastActionTitleHash = actionTitleHash;
+            mLastUpdateTime = currentTime;
+
+            mLastEventTitle = currentEventTitle != null ? currentEventTitle : "";
+            mLastWeatherTemp = currentWeatherTemp != null ? currentWeatherTemp : "";
+            mLastActionTitle = currentActionTitle != null ? currentActionTitle : "";
+        }
+
+        return changed;
+    }
+
     private final void loadDoubleLine(boolean useAlternativeQuickspaceUI) {
-        setBackgroundResource(mQuickspaceBackgroundRes);
-        mEventTitle.setText(mController.getEventController().getTitle());
+        if (mController == null || mController.getEventController() == null) {
+            return;
+        }
+
+        if (getBackground() == null) {
+            setBackgroundResource(mQuickspaceBackgroundRes);
+        }
+
+        String eventTitle = mController.getEventController().getTitle();
+        if (!mEventTitle.getText().toString().equals(eventTitle)) {
+            mEventTitle.setText(eventTitle);
+        }
+
         if (useAlternativeQuickspaceUI) {
             String greetingsExt = mController.getEventController().getGreetings();
-            if (greetingsExt != null && !greetingsExt.isEmpty()) {
-                mGreetingsExt.setVisibility(View.VISIBLE);
-                mGreetingsExt.setText(greetingsExt);
+            updateTextViewIfNeeded(mGreetingsExt, greetingsExt, true);
+            if (mGreetingsExt.getVisibility() == View.VISIBLE) {
                 mGreetingsExt.setEllipsize(TruncateAt.END);
                 mGreetingsExt.setOnClickListener(mController.getEventController().getAction());
-            } else {
-                mGreetingsExt.setVisibility(View.GONE);
             }
             String greetingsExtClock = mController.getEventController().getClockExt();
-            if (greetingsExtClock != null && !greetingsExtClock.isEmpty()) {
-                mGreetingsExtClock.setVisibility(View.VISIBLE);
-                mGreetingsExtClock.setText(greetingsExtClock);
+            updateTextViewIfNeeded(mGreetingsExtClock, greetingsExtClock, true);
+            if (mGreetingsExtClock.getVisibility() == View.VISIBLE) {
                 mGreetingsExtClock.setOnClickListener(mController.getEventController().getAction());
-            } else {
-                mGreetingsExtClock.setVisibility(View.GONE);
             }
         }
         boolean shouldShowPsa = mIsQuickEvent && (LauncherPrefs.SHOW_QUICKSPACE_PSONALITY.get(getContext()) ||
                         mController.getEventController().isNowPlaying());
 
+        scheduleUpdate(() -> updatePsaContent(shouldShowPsa, useAlternativeQuickspaceUI));
+        scheduleUpdate(() -> updateWeatherContent());
+    }
+    
+    private void updatePsaContent(boolean shouldShowPsa, boolean useAlternativeQuickspaceUI) {
         if (shouldShowPsa) {
             maybeSetMarquee(mEventTitle);
             mEventTitle.setOnClickListener(mController.getEventController().getAction());
-            mEventTitleSub.setText(mController.getEventController().getActionTitle());
+            
+            String actionTitle = mController.getEventController().getActionTitle();
+            if (!mEventTitleSub.getText().toString().equals(actionTitle)) {
+                mEventTitleSub.setText(actionTitle);
+            }
             maybeSetMarquee(mEventTitleSub);
             mEventTitleSub.setOnClickListener(mController.getEventController().getAction());
 
@@ -160,19 +250,7 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
             }
 
             if (useAlternativeQuickspaceUI) {
-                if (mController.getEventController().isNowPlaying()) {
-
-                    animateOut(mEventSubIcon);
-                    animateIn(mEventTitleSubColored);
-                    animateIn(mNowPlayingIcon);
-                    mNowPlayingIcon.setOnClickListener(mController.getEventController().getAction());
-                    mEventTitleSubColored.setText(getContext().getString(R.string.qe_now_playing_by));
-                    mEventTitleSubColored.setOnClickListener(mController.getEventController().getAction());
-                } else {
-                    setEventSubIcon();
-                    animateOut(mEventTitleSubColored);
-                    animateOut(mNowPlayingIcon);
-                }
+                updateNowPlayingState();
             } else {
                 setEventSubIcon();
             }
@@ -184,12 +262,51 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
                 animateOut(mNowPlayingIcon);
             }
         }
+    }
+    
+    private void updateNowPlayingState() {
+        if (mController.getEventController().isNowPlaying()) {
+            animateOut(mEventSubIcon);
+            animateIn(mEventTitleSubColored);
+            animateIn(mNowPlayingIcon);
+            mNowPlayingIcon.setOnClickListener(mController.getEventController().getAction());
+
+            String nowPlayingText = getContext().getString(R.string.qe_now_playing_by);
+            if (!mEventTitleSubColored.getText().toString().equals(nowPlayingText)) {
+                mEventTitleSubColored.setText(nowPlayingText);
+            }
+            mEventTitleSubColored.setOnClickListener(mController.getEventController().getAction());
+        } else {
+            setEventSubIcon();
+            animateOut(mEventTitleSubColored);
+            animateOut(mNowPlayingIcon);
+        }
+    }
+    
+    private void updateWeatherContent() {
         bindWeather(mWeatherContentSub, mWeatherTempSub, mWeatherIconSub);
         boolean hasGoogleApp = isPackageEnabled("com.google.android.googlequicksearchbox", getContext());
         mWeatherContentSub.setOnClickListener(hasGoogleApp ? getActionReceiver().getWeatherAction() : null);
     }
+    
+    private void updateTextViewIfNeeded(TextView textView, String newText, boolean setVisibility) {
+        if (textView == null) return;
+        
+        boolean hasText = newText != null && !newText.isEmpty();
+        boolean currentlyVisible = textView.getVisibility() == View.VISIBLE;
+        String currentText = textView.getText().toString();
+        
+        if (setVisibility && hasText != currentlyVisible) {
+            textView.setVisibility(hasText ? View.VISIBLE : View.GONE);
+        }
+        
+        if (hasText && !currentText.equals(newText)) {
+            textView.setText(newText);
+        }
+    }
 
     private void maybeSetMarquee(TextView tv) {
+        if (tv == null) return;
         tv.setSelected(false);
         tv.setEllipsize(TruncateAt.END);
         final float textWidth = tv.getPaint().measureText(tv.getText().toString());
@@ -204,6 +321,10 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     }
 
     private void setEventSubIcon() {
+        if (mController == null || mController.getEventController() == null) {
+            return;
+        }
+
         Drawable icon = mController.getEventController().getActionIcon();
         if (icon != null) {
             if (mEventSubIcon.getVisibility() != View.VISIBLE) {
@@ -218,20 +339,33 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     }
 
     private final void bindWeather(View container, TextView title, ImageView icon) {
+        if (container == null || title == null || icon == null) return;
+
         if (!mWeatherAvailable || mController.getEventController().isNowPlaying()) {
-            container.setVisibility(View.GONE);
+            if (container.getVisibility() != View.GONE) {
+                container.setVisibility(View.GONE);
+            }
             return;
         }
         String weatherTemp = mController.getWeatherTemp();
         if (weatherTemp == null || weatherTemp.isEmpty()) {
-            container.setVisibility(View.GONE);
+            if (container.getVisibility() != View.GONE) {
+                container.setVisibility(View.GONE);
+            }
             return;
         }
         if (container.getVisibility() != View.VISIBLE) {
             animateIn(container);
         }
-        title.setText(weatherTemp);
-        icon.setImageDrawable(mController.getWeatherIcon());
+
+        if (!title.getText().toString().equals(weatherTemp)) {
+            title.setText(weatherTemp);
+        }
+
+        Drawable weatherIcon = mController.getWeatherIcon();
+        if (icon.getDrawable() != weatherIcon) {
+            icon.setImageDrawable(weatherIcon);
+        }
     }
 
     private QuickSpaceActionReceiver getActionReceiver() {
@@ -244,16 +378,29 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     private void loadLargeStyle() {
         if (mQuickspaceDayOfWeek == null) return; // Views not inflated for this style
 
-        boolean accentEnabled = LauncherPrefs.QUICKSPACE_VOLTAGE_ACCENT.get(getContext());
-        if (mQuickspaceClock != null) {
-            mQuickspaceClock.setAccentEnabled(accentEnabled);
+        if (mController == null || mController.getEventController() == null) {
+            return;
         }
 
-        mQuickspaceDayOfWeek.setText(QuickEventsController.getDayOfWeek(getContext()));
-        mQuickspaceDate.setText(mController.getEventController().getShortDate(getContext()));
-        mWeatherContentSub.setVisibility(View.VISIBLE);
+        beginBatchEdit();
 
-        mDateWeatherRow.setVisibility(View.VISIBLE);
+        boolean accentEnabled = LauncherPrefs.QUICKSPACE_VOLTAGE_ACCENT.get(getContext());
+        if (mQuickspaceClock != null) { 
+            if (mLastAccentState != accentEnabled) {
+                mQuickspaceClock.setAccentEnabled(accentEnabled);
+                mLastAccentState = accentEnabled;
+            }
+        }
+
+        String dayOfWeek = QuickEventsController.getDayOfWeek(getContext());
+        updateTextViewIfNeeded(mQuickspaceDayOfWeek, dayOfWeek, false);
+
+        String shortDate = mController.getEventController().getShortDate(getContext());
+        updateTextViewIfNeeded(mQuickspaceDate, shortDate, false);
+
+        if (mWeatherContentSub.getVisibility() != View.VISIBLE) {
+            mWeatherContentSub.setVisibility(View.VISIBLE);
+        }
 
         View.OnClickListener openClockListener = v -> {
             try {
@@ -288,28 +435,72 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
 
         boolean isNowPlaying = mController.getEventController().isNowPlaying();
         if (isNowPlaying) {
-            mContextualInfoRow.setVisibility(View.VISIBLE);
-            mPSAMessage.setVisibility(View.GONE);
-            mNowPlayingContent.setVisibility(View.VISIBLE);
-            String nowPlaying = mController.getEventController().getTitle() + " - " + mController.getEventController().getActionTitle();
-            mNowPlayingText.setText(nowPlaying);
-            mNowPlayingContent.setOnClickListener(mController.getEventController().getAction());
-            maybeSetMarquee(mNowPlayingText);
-        } else {
-            mNowPlayingContent.setVisibility(View.GONE);
-            if (mIsQuickEvent && LauncherPrefs.SHOW_QUICKSPACE_PSONALITY.get(getContext())) {
+            if (mContextualInfoRow.getVisibility() != View.VISIBLE) {
                 mContextualInfoRow.setVisibility(View.VISIBLE);
+            }
+            if (mPSAMessage.getVisibility() != View.GONE) {
+                mPSAMessage.setVisibility(View.GONE);
+            }
+            if (mNowPlayingContent.getVisibility() != View.VISIBLE) {
+                mNowPlayingContent.setVisibility(View.VISIBLE);
+            }
+
+            if (mController == null || mController.getEventController() == null) {
+                endBatchEdit();
+                return;
+            }
+
+            String nowPlaying = mController.getEventController().getTitle() + " - " + mController.getEventController().getActionTitle();
+            if (!mNowPlayingText.getText().toString().equals(nowPlaying)) {
+                mNowPlayingText.setText(nowPlaying);
+            }
+            mNowPlayingContent.setOnClickListener(mController.getEventController().getAction());
+            post(() -> maybeSetMarquee(mNowPlayingText));
+        } else {
+            if (mNowPlayingContent.getVisibility() != View.GONE) {
                 mNowPlayingContent.setVisibility(View.GONE);
-                mPSAMessage.setVisibility(View.VISIBLE);
-                mPSAMessage.setText(mController.getEventController().getActionTitle());
+            }
+            if (mIsQuickEvent && LauncherPrefs.SHOW_QUICKSPACE_PSONALITY.get(getContext())) {
+                if (mContextualInfoRow.getVisibility() != View.VISIBLE) {
+                    mContextualInfoRow.setVisibility(View.VISIBLE);
+                }
+                if (mPSAMessage.getVisibility() != View.VISIBLE) {
+                    mPSAMessage.setVisibility(View.VISIBLE);
+                }
+
+                if (mController == null || mController.getEventController() == null) {
+                    endBatchEdit();
+                    return;
+                }
+
+                String actionTitle = mController.getEventController().getActionTitle();
+                if (!mPSAMessage.getText().toString().equals(actionTitle)) {
+                    mPSAMessage.setText(actionTitle);
+                }
                 mPSAMessage.setOnClickListener(mController.getEventController().getAction());
-                maybeSetMarquee(mPSAMessage);
+                post(() -> maybeSetMarquee(mPSAMessage));
             } else {
-                mContextualInfoRow.setVisibility(View.GONE);
+                if (mContextualInfoRow.getVisibility() != View.GONE) {
+                    mContextualInfoRow.setVisibility(View.GONE);
+                }
             }
         }
+
+        endBatchEdit();
     }
 
+
+    private void beginBatchEdit() {
+       if (mQuickspaceContent != null) {
+            mQuickspaceContent.suppressLayout(true);
+        }
+    }
+    
+    private void endBatchEdit() {
+        if (mQuickspaceContent != null) {
+            mQuickspaceContent.suppressLayout(false);
+        }
+    }
 
     private final void loadViews() {
         mEventTitle = (TextView) findViewById(R.id.quick_event_title);
@@ -333,15 +524,20 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
             mPSAMessage = findViewById(R.id.quickspace_psa_message);
             mNowPlayingContent = findViewById(R.id.now_playing_content);
             mNowPlayingText = findViewById(R.id.now_playing_text);
-            mDateWeatherRow = findViewById(R.id.date_weather_row);
             mContextualInfoRow = findViewById(R.id.contextual_info_row);
         }
     }
 
     private void prepareLayout(int style) {
+        if (mCurrentStyle == style && mViewsLoaded) {
+            return; // Avoid unnecessary layout inflation
+        }
+
         mCurrentStyle = style;
         int indexOfChild = indexOfChild(mQuickspaceContent);
-        removeView(mQuickspaceContent);
+        if (mQuickspaceContent != null) {
+            removeView(mQuickspaceContent);
+        }
         int layoutId;
         switch (style) {
             case 1:
@@ -360,10 +556,10 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     }
 
     private void getQuickSpaceView() {
-        if (mQuickspaceContent.getVisibility() != View.VISIBLE) {
-        	 mQuickspaceContent.setVisibility(View.VISIBLE);
+         if (mQuickspaceContent.getVisibility() != View.VISIBLE) {
+            mQuickspaceContent.setVisibility(View.VISIBLE);
             mQuickspaceContent.setAlpha(0.0f);
-            mQuickspaceContent.animate().setDuration(200).alpha(1.0f);
+            mQuickspaceContent.animate().setDuration(150).alpha(1.0f);
         }
     }
 
@@ -371,28 +567,78 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
         if (view.getVisibility() == View.VISIBLE && view.getAlpha() == 1f) {
             return; // Already visible
         }
+
+        view.animate().cancel();
+
         view.setVisibility(View.VISIBLE);
         view.setAlpha(0f);
         view.setTranslationY(view.getHeight() / 2f);
-        view.animate()
+        mCurrentAnimateIn = view.animate()
             .alpha(1f)
             .translationY(0f)
-            .setDuration(300)
+            .setDuration(200)
             .setInterpolator(new DecelerateInterpolator())
-            .start();
+            .withEndAction(null);
+        mCurrentAnimateIn.start();
     }
 
     private void animateOut(View view) {
         if (view.getVisibility() != View.VISIBLE) {
             return; // Already hidden
         }
-        view.animate()
+        view.animate().cancel();
+        
+        mCurrentAnimateOut = view.animate()
             .alpha(0f)
             .translationY(view.getHeight() / 2f)
-            .setDuration(400)
+            .setDuration(250)
             .setInterpolator(new AccelerateInterpolator())
-            .withEndAction(() -> view.setVisibility(View.GONE))
-            .start();
+            .withEndAction(() -> {
+                view.setVisibility(View.GONE);
+                view.setTranslationY(0f);
+                view.setAlpha(1f);
+            });
+        
+        mCurrentAnimateOut.start();
+    }
+
+    private void cancelAllAnimations() {
+        if (mCurrentAnimateIn != null) {
+            mCurrentAnimateIn.cancel();
+            mCurrentAnimateIn = null;
+        }
+        if (mCurrentAnimateOut != null) {
+            mCurrentAnimateOut.cancel();
+            mCurrentAnimateOut = null;
+        }
+        
+        if (mEventTitleSub != null) mEventTitleSub.animate().cancel();
+        if (mEventSubIcon != null) mEventSubIcon.animate().cancel();
+        if (mEventTitleSubColored != null) mEventTitleSubColored.animate().cancel();
+        if (mNowPlayingIcon != null) mNowPlayingIcon.animate().cancel();
+        if (mWeatherContentSub != null) mWeatherContentSub.animate().cancel();
+        if (mQuickspaceContent != null) mQuickspaceContent.animate().cancel();
+    }
+    
+    private void clearPendingUpdates() {
+        mUpdateHandler.removeCallbacksAndMessages(null);
+        mPendingUpdates.clear();
+    }
+    
+    private void clearClickListeners() {
+        View[] clickableViews = {
+            mEventTitle, mEventTitleSub, mEventTitleSubColored,
+            mGreetingsExt, mGreetingsExtClock, mEventSubIcon,
+            mNowPlayingIcon, mWeatherContentSub, mQuickspaceDayOfWeek,
+            mQuickspaceClock, mQuickspaceDate, mPSAMessage,
+            mNowPlayingContent, mNowPlayingText
+        };
+        
+        for (View view : clickableViews) {
+            if (view != null) {
+                view.setOnClickListener(null);
+            }
+        }
     }
 
     @Override
@@ -402,6 +648,9 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
             return;
 
         mAttached = true;
+        if (mController != null && mFinishedInflate) {
+            mController.addListener(this);
+        }
     }
 
     @Override
@@ -410,6 +659,9 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
         if (!mAttached)
             return;
 
+        cancelAllAnimations();
+        clearPendingUpdates();
+        
         mAttached = false;
     }
 
@@ -458,6 +710,11 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     }
 
     public void onDestroy() {
+        clearPendingUpdates();
+        cancelAllAnimations();
+
+        clearClickListeners();
+
         mController.onDestroy();
         mActionReceiver = null;
         mController = null;
@@ -481,8 +738,8 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
         mPSAMessage = null;
         mNowPlayingContent = null;
         mNowPlayingText = null;
-        mDateWeatherRow = null;
         mContextualInfoRow = null;
+        setBackground(null);
     }
 
     public void setPadding(int n, int n2, int n3, int n4) {
