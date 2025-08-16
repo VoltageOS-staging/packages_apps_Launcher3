@@ -923,11 +923,14 @@ public abstract class AbsSwipeUpHandler<
                 || !canCreateNewOrUpdateExistingLauncherTransitionController()) {
             return;
         }
-        mLauncherTransitionController.setProgress(
-                // Immediately finish the grid transition
-                isKeyboardTaskFocusPending()
-                        ? 1f : Math.max(mCurrentShift.value, getScaleProgressDueToScroll()),
-                mDragLengthFactor);
+
+        MAIN_EXECUTOR.execute(() -> {
+            mLauncherTransitionController.setProgress(
+                    isKeyboardTaskFocusPending()
+                            ? 1f
+                            : Math.max(mCurrentShift.value, getScaleProgressDueToScroll()),
+                    mDragLengthFactor);
+        });
     }
 
     /**
