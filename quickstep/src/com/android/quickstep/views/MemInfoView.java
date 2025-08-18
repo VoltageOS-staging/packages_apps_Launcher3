@@ -17,6 +17,7 @@
 
 package com.android.quickstep.views;
 
+import static com.android.launcher3.util.Executors.MODEL_EXECUTOR;
 import static com.android.launcher3.util.NavigationMode.TWO_BUTTONS;
 import static com.android.launcher3.util.NavigationMode.THREE_BUTTONS;
 
@@ -97,12 +98,6 @@ public class MemInfoView extends TextView implements Insettable {
     private Context mContext;
 
     String mTotalResult;
-
-    private static final HandlerThread BACKGROUND_THREAD = new HandlerThread("MemoryInfoThread");
-
-    static {
-        BACKGROUND_THREAD.start();
-    }
 
     public MemInfoView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -262,7 +257,7 @@ public class MemInfoView extends TextView implements Insettable {
     private void startMemoryMonitoring() {
         stopMemoryMonitoring();
         if (mHandler == null) {
-            mHandler = new Handler(BACKGROUND_THREAD.getLooper());
+            mHandler = MODEL_EXECUTOR.getHandler();
         }
         mHandler.post(mWorker);
     }
