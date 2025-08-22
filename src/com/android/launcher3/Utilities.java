@@ -89,6 +89,8 @@ import androidx.core.graphics.ColorUtils;
 
 import com.android.launcher3.R;
 import com.android.launcher3.dragndrop.FolderAdaptiveIcon;
+import com.android.launcher3.Flags;
+import com.android.launcher3.LauncherFiles;
 import com.android.launcher3.graphics.ThemeManager;
 import com.android.launcher3.graphics.TintedDrawableSpan;
 import com.android.launcher3.icons.BitmapInfo;
@@ -1135,6 +1137,10 @@ public final class Utilities {
 
     public static boolean shouldForceAllAppsOnBottomSheet(Context context) {
         return LauncherPrefs.KEY_FORCE_ALL_APPS_ON_BOTTOM_SHEET.get(context);
+    }
+    
+    public static boolean shouldEnableAllAppsBlur(Context context) {
+        return LauncherPrefs.KEY_ALL_APPS_BLUR.get(context);
     }
 
 }
