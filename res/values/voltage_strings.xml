@@ -549,4 +549,8 @@
     <!-- Dark Status Bar -->
     <string name="perf_dark_status_bar_title">Dark status bar</string>
     <string name="perf_dark_status_bar_summary">Always use dark status bar on home screen</string>
+
+    <!-- Force All Apps on Bottom Sheet -->
+    <string name="force_all_apps_on_bottom_sheet_title">Force all apps on bottom sheet</string>
+    <string name="force_all_apps_on_bottom_sheet_summary">Force all apps to be presented on a bottom sheet instead of full screen</string>
 </resources>
