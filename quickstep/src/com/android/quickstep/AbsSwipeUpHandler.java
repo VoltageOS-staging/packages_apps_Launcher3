@@ -2159,11 +2159,12 @@ public abstract class AbsSwipeUpHandler<
             mLauncherTransitionController.getNormalController().dispatchSetInterpolator(
                     t -> Utilities.boundToRange(mCurrentShift.value, 0, 1));
             MAIN_EXECUTOR.execute(() -> {
-                mLauncherTransitionController.getNormalController().getAnimationPlayer().end();
+                if (mLauncherTransitionController != null) {
+                    mLauncherTransitionController.getNormalController().getAnimationPlayer().end();
+                }
             });
             mLauncherTransitionController = null;
         }
-
         if (mRecentsView != null) {
             mRecentsView.abortScrollerAnimation();
         }
