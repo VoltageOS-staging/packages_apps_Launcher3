@@ -2148,14 +2148,14 @@ public abstract class AbsSwipeUpHandler<
 
         if (mLauncherTransitionController != null) {
             // End the animation, but stay at the same visual progress.
-            mLauncherTransitionController.getNormalController().dispatchSetInterpolator(
+            final AnimatorControllerWithResistance controller = mLauncherTransitionController;
+            controller.getNormalController().dispatchSetInterpolator(
                     t -> Utilities.boundToRange(mCurrentShift.value, 0, 1));
             MAIN_EXECUTOR.execute(() -> {
-                mLauncherTransitionController.getNormalController().getAnimationPlayer().end();
+                controller.getNormalController().getAnimationPlayer().end();
             });
             mLauncherTransitionController = null;
         }
-
         if (mRecentsView != null) {
             mRecentsView.abortScrollerAnimation();
         }
