@@ -149,7 +149,7 @@ public class StatusBarTouchController implements TouchController {
         } else {
             wlp.flags &= ~FLAG_SLIPPERY;
         }
-        w.setAttributes(wlp);
+        mLauncher.runOnUiThread(() -> w.setAttributes(wlp));
     }
 
     private boolean canInterceptTouch(MotionEvent ev) {
