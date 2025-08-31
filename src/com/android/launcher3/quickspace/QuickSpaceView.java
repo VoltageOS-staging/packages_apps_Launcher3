@@ -26,6 +26,7 @@ import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.provider.AlarmClock;
 import android.provider.CalendarContract;
+import android.text.TextUtils;
 import android.text.TextUtils.TruncateAt;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
@@ -36,10 +37,6 @@ import android.view.animation.DecelerateInterpolator;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.view.ViewPropertyAnimator;
-import android.os.Handler;
-import android.os.Looper;
-import java.util.HashSet;
-import java.util.Set;
 import android.widget.TextView;
 
 import com.android.launcher3.BubbleTextView;
@@ -98,8 +95,6 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
 
     private ViewPropertyAnimator mCurrentAnimateIn;
     private ViewPropertyAnimator mCurrentAnimateOut;
-    private final Set<Runnable> mPendingUpdates = new HashSet<>();
-    private final Handler mUpdateHandler = new Handler(Looper.getMainLooper());
     private int mLastEventTitleHash = 0;
     private int mLastWeatherTempHash = 0;
     private int mLastActionTitleHash = 0;
@@ -138,7 +133,7 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     private void updateView(int style) {
         switch (style) {
             case 2:
-                post(() -> loadLargeStyle());
+                loadLargeStyle();
                 break;
             case 1: // Extended
             case 0: // Default
@@ -147,17 +142,6 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
                 break;
         }
 
-    }
-
-    private void scheduleUpdate(Runnable update) {
-        if (!mPendingUpdates.contains(update)) {
-            mPendingUpdates.add(update);
-            mUpdateHandler.post(() -> {
-                if (mPendingUpdates.remove(update)) {
-                    update.run();
-                }
-            });
-        }
     }
 
     private boolean hasDataChanged() {
@@ -204,14 +188,14 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
             return;
         }
 
+        beginBatchEdit();
+
         if (getBackground() == null) {
             setBackgroundResource(mQuickspaceBackgroundRes);
         }
 
         String eventTitle = mController.getEventController().getTitle();
-        if (!mEventTitle.getText().toString().equals(eventTitle)) {
-            mEventTitle.setText(eventTitle);
-        }
+        updateTextViewIfNeeded(mEventTitle, eventTitle, false);
 
         if (useAlternativeQuickspaceUI) {
             String greetingsExt = mController.getEventController().getGreetings();
@@ -229,8 +213,10 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
         boolean shouldShowPsa = mIsQuickEvent && (LauncherPrefs.SHOW_QUICKSPACE_PSONALITY.get(getContext()) ||
                         mController.getEventController().isNowPlaying());
 
-        scheduleUpdate(() -> updatePsaContent(shouldShowPsa, useAlternativeQuickspaceUI));
-        scheduleUpdate(() -> updateWeatherContent());
+        updatePsaContent(shouldShowPsa, useAlternativeQuickspaceUI);
+        updateWeatherContent();
+
+        endBatchEdit();
     }
     
     private void updatePsaContent(boolean shouldShowPsa, boolean useAlternativeQuickspaceUI) {
@@ -239,9 +225,7 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
             mEventTitle.setOnClickListener(mController.getEventController().getAction());
             
             String actionTitle = mController.getEventController().getActionTitle();
-            if (!mEventTitleSub.getText().toString().equals(actionTitle)) {
-                mEventTitleSub.setText(actionTitle);
-            }
+            updateTextViewIfNeeded(mEventTitleSub, actionTitle, false);
             maybeSetMarquee(mEventTitleSub);
             mEventTitleSub.setOnClickListener(mController.getEventController().getAction());
 
@@ -272,9 +256,7 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
             mNowPlayingIcon.setOnClickListener(mController.getEventController().getAction());
 
             String nowPlayingText = getContext().getString(R.string.qe_now_playing_by);
-            if (!mEventTitleSubColored.getText().toString().equals(nowPlayingText)) {
-                mEventTitleSubColored.setText(nowPlayingText);
-            }
+            updateTextViewIfNeeded(mEventTitleSubColored, nowPlayingText, false);
             mEventTitleSubColored.setOnClickListener(mController.getEventController().getAction());
         } else {
             setEventSubIcon();
@@ -289,18 +271,21 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
         mWeatherContentSub.setOnClickListener(hasGoogleApp ? getActionReceiver().getWeatherAction() : null);
     }
     
-    private void updateTextViewIfNeeded(TextView textView, String newText, boolean setVisibility) {
+    private void updateTextViewIfNeeded(TextView textView, CharSequence newText, boolean setVisibility) {
         if (textView == null) return;
-        
-        boolean hasText = newText != null && !newText.isEmpty();
-        boolean currentlyVisible = textView.getVisibility() == View.VISIBLE;
-        String currentText = textView.getText().toString();
-        
-        if (setVisibility && hasText != currentlyVisible) {
-            textView.setVisibility(hasText ? View.VISIBLE : View.GONE);
+
+        boolean hasText = !TextUtils.isEmpty(newText);
+
+        // Update visibility if requested
+        if (setVisibility) {
+            int newVisibility = hasText ? View.VISIBLE : View.GONE;
+            if (textView.getVisibility() != newVisibility) {
+                textView.setVisibility(newVisibility);
+            }
         }
-        
-        if (hasText && !currentText.equals(newText)) {
+
+        // Update text content only if it has changed
+        if (!TextUtils.equals(textView.getText(), newText)) {
             textView.setText(newText);
         }
     }
@@ -358,9 +343,7 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
             animateIn(container);
         }
 
-        if (!title.getText().toString().equals(weatherTemp)) {
-            title.setText(weatherTemp);
-        }
+        updateTextViewIfNeeded(title, weatherTemp, false);
 
         Drawable weatherIcon = mController.getWeatherIcon();
         if (icon.getDrawable() != weatherIcon) {
@@ -451,9 +434,7 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
             }
 
             String nowPlaying = mController.getEventController().getTitle() + " - " + mController.getEventController().getActionTitle();
-            if (!mNowPlayingText.getText().toString().equals(nowPlaying)) {
-                mNowPlayingText.setText(nowPlaying);
-            }
+            updateTextViewIfNeeded(mNowPlayingText, nowPlaying, false);
             mNowPlayingContent.setOnClickListener(mController.getEventController().getAction());
             post(() -> maybeSetMarquee(mNowPlayingText));
         } else {
@@ -474,9 +455,7 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
                 }
 
                 String actionTitle = mController.getEventController().getActionTitle();
-                if (!mPSAMessage.getText().toString().equals(actionTitle)) {
-                    mPSAMessage.setText(actionTitle);
-                }
+                updateTextViewIfNeeded(mPSAMessage, actionTitle, false);
                 mPSAMessage.setOnClickListener(mController.getEventController().getAction());
                 post(() -> maybeSetMarquee(mPSAMessage));
             } else {
@@ -620,11 +599,6 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
         if (mQuickspaceContent != null) mQuickspaceContent.animate().cancel();
     }
     
-    private void clearPendingUpdates() {
-        mUpdateHandler.removeCallbacksAndMessages(null);
-        mPendingUpdates.clear();
-    }
-    
     private void clearClickListeners() {
         View[] clickableViews = {
             mEventTitle, mEventTitleSub, mEventTitleSubColored,
@@ -660,7 +634,6 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
             return;
 
         cancelAllAnimations();
-        clearPendingUpdates();
         
         mAttached = false;
     }
@@ -710,7 +683,6 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     }
 
     public void onDestroy() {
-        clearPendingUpdates();
         cancelAllAnimations();
 
         clearClickListeners();
