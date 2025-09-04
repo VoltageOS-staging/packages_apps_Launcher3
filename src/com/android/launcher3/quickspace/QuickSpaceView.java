@@ -700,10 +700,6 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     private void safeRemoveListener() {
         if (mController != null && !mDestroyed) {
             try {
-                if (mController.mDestroyed) {
-                    mController = null;
-                    return;
-                }
                 mController.removeListener(this);
             } catch (Exception e) {
                 // Ignore - controller might be destroyed
@@ -801,12 +797,6 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
         cancelAllAnimations();
         safeRemoveListener();
         clearClickListeners();
-    }
-
-    @Override
-    protected void onDetachedFromWindow() {
-        removeCallbacks(mDeferredUpdateRunnable);
-        super.onDetachedFromWindow();
     }
 
     public void onDestroy() {

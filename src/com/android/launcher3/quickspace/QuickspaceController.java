@@ -75,8 +75,7 @@ public class QuickspaceController implements OmniJawsClient.OmniJawsObserver,
     private final Handler mHandler = MAIN_EXECUTOR.getHandler();
     private final Runnable mPsaRunnable;
     private boolean mPsaScheduled = false;
-    private volatile boolean mDestroyed = false;
-    private final AtomicBoolean mInitialized = new AtomicBoolean(false);
+    volatile boolean mDestroyed = false;
     private static QuickspaceController sInstance;
 
     // Cache for expensive operations
@@ -463,10 +462,10 @@ public String getWeatherTemp() {
     }
 
     public void onDestroy() {
-        if (!mInitialized.compareAndSet(true, false)) {
+        if (mDestroyed) {
             return;
-        }
-        
+         }
+
         mDestroyed = true;
         
         // Clear static reference
