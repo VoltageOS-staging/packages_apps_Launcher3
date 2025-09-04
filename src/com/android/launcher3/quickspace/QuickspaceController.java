@@ -84,13 +84,26 @@ public class QuickspaceController implements OmniJawsClient.OmniJawsObserver,
     private long mWeatherCacheTime = 0;
     private static final long WEATHER_CACHE_DURATION = 60 * 1000; // Cache for 1 minute
 
+    private boolean mIsResuming = false;
+    private final Object mNotificationLock = new Object();
+    private boolean mHasPendingNotification = false;
+    private long mLastNotificationTime = 0;
+
     private Runnable mOnDataUpdatedRunnable = new Runnable() {
             @Override
             public void run() {
                 if (mDestroyed) {
                     return;
                 }
-                notifyListenersInternal();
+                synchronized (mNotificationLock) {
+                    mHasPendingNotification = false;
+                    mLastNotificationTime = System.currentTimeMillis();
+                }
+                try {
+                    notifyListenersInternal();
+                } catch (Exception e) {
+                    Log.w(TAG, "Error during listener notification", e);
+                }
             }
         };
 
@@ -222,6 +235,11 @@ private synchronized void initializeMediaIfNeeded() {
         mListeners.add(new WeakReference<>(listener));
         
         // Lazy initialization
+        if (mIsResuming) {
+            MAIN_EXECUTOR.execute(() -> initializeComponentsDeferred());
+            return;
+        }
+
         initializeWeatherIfNeeded();
         initializeMediaIfNeeded();
         
@@ -235,6 +253,16 @@ private synchronized void initializeMediaIfNeeded() {
         listener.onDataUpdated();
     }
     
+    private void initializeComponentsDeferred() {
+        if (mDestroyed) return;
+        
+        MODEL_EXECUTOR.execute(() -> {
+            initializeWeatherIfNeeded();
+            initializeMediaIfNeeded();
+            MAIN_EXECUTOR.execute(() -> notifyListeners());
+        });
+    }
+
     private void cleanupDeadReferences() {
         synchronized (mListeners) {
             Iterator<WeakReference<OnDataListener>> iterator = mListeners.iterator();
@@ -418,7 +446,9 @@ public String getWeatherTemp() {
     }
 
     public void onResume() {
+        mIsResuming = true;
         updateMediaController();
+        mIsResuming = false;
         notifyListeners();
     }
 
@@ -503,6 +533,17 @@ public String getWeatherTemp() {
     }
 
     public void notifyListeners() {
+        synchronized (mNotificationLock) {
+            if (mHasPendingNotification) {
+                return; // Already scheduled
+            }
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - mLastNotificationTime < 50) { // Throttle to max 20fps
+                return;
+            }
+            mHasPendingNotification = true;
+        }
+
         mHandler.removeCallbacks(mOnDataUpdatedRunnable);
         mHandler.post(mOnDataUpdatedRunnable);
     }
