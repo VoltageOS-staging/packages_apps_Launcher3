@@ -75,8 +75,9 @@ public class QuickspaceController implements OmniJawsClient.OmniJawsObserver,
     private final Handler mHandler = MAIN_EXECUTOR.getHandler();
     private final Runnable mPsaRunnable;
     private boolean mPsaScheduled = false;
-    private boolean mDestroyed = false;
-    private static QuickspaceController sInstance; // Static reference leak fix
+    private volatile boolean mDestroyed = false;
+    private final AtomicBoolean mInitialized = new AtomicBoolean(false);
+    private static QuickspaceController sInstance;
 
     // Cache for expensive operations
     private String mCachedWeatherTemp;
@@ -122,7 +123,7 @@ public class QuickspaceController implements OmniJawsClient.OmniJawsObserver,
     }
 
     public QuickspaceController(Context context) {
-        mContext = context;
+        mContext = context.getApplicationContext();
         mConditionMap = initializeConditionMap();
         mEventsController = new QuickEventsController(context);
 
@@ -161,10 +162,15 @@ public class QuickspaceController implements OmniJawsClient.OmniJawsObserver,
     }
 
     public static QuickspaceController getInstance(Context context) {
+        if (sInstance != null && !sInstance.mDestroyed) {
+            return sInstance;
+        }
+        synchronized (QuickspaceController.class) {
         if (sInstance == null || sInstance.mDestroyed) {
             sInstance = new QuickspaceController(context);
         }
         return sInstance;
+        }
     }
 
 private synchronized void initializeWeatherIfNeeded() {
@@ -409,8 +415,6 @@ public String getWeatherTemp() {
         mHandler.removeCallbacks(mPsaRunnable);
         
         stopPsaScheduling();
-
-        mHandler.removeCallbacks(mOnDataUpdatedRunnable);
     }
 
     public void onResume() {
@@ -429,6 +433,10 @@ public String getWeatherTemp() {
     }
 
     public void onDestroy() {
+        if (!mInitialized.compareAndSet(true, false)) {
+            return;
+        }
+        
         mDestroyed = true;
         
         // Clear static reference
@@ -448,7 +456,9 @@ public String getWeatherTemp() {
         mConditionImage = null;
         mEventsController = null;
         mCachedWeatherTemp = null;
-        
+
+        mWeatherCacheTime = 0;
+
         // Clear listener list
         synchronized (mListeners) {
             mListeners.clear();

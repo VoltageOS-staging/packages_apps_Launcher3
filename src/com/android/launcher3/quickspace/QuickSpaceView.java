@@ -83,8 +83,8 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     public boolean mFinishedInflate;
     public boolean mWeatherAvailable;
     public boolean mAttached;
-    private boolean mDestroyed = false;
-    private boolean mPendingDestroy = false;
+    private volatile boolean mDestroyed = false;
+    private volatile boolean mPendingDestroy = false;
 
     private boolean mIsAlternateStyle = false;
     private boolean mLastAccentState;
@@ -647,6 +647,10 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     private void safeRemoveListener() {
         if (mController != null && !mDestroyed) {
             try {
+                if (mController.mDestroyed) {
+                    mController = null;
+                    return;
+                }
                 mController.removeListener(this);
             } catch (Exception e) {
                 // Ignore - controller might be destroyed
@@ -716,15 +720,22 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     public void onPause() {
         safeRemoveListener();
         if (mController != null) {
+            try {
             mController.onPause();
+            } catch (Exception e) {
+                mController = null;
+            }
         }
-
     }
 
     public void onResume() {
         if (mController != null && mFinishedInflate && !mDestroyed && !mPendingDestroy) {
             mController.addListener(this);
+            try {
             mController.onResume();
+            } catch (Exception e) {
+                mController = null;
+            }
         }
     }
 
@@ -736,13 +747,16 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     }
 
     public void onDestroy() {
+        if (mDestroyed) {
+            return;
+        }
+
         mDestroyed = true;
         mPendingDestroy = true;
 
         cancelAllAnimations();
 
         safeRemoveListener();
-
         clearClickListeners();
 
         if (mController != null) {
@@ -776,7 +790,9 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
         mAttached = false;
         mFinishedInflate = false;
         mViewsLoaded = false;
-        mDestroyed = true;
+        mLastEventTitle = "";
+        mLastWeatherTemp = "";
+        mLastActionTitle = "";
     }
 
     public void setPadding(int n, int n2, int n3, int n4) {
