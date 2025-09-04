@@ -83,6 +83,8 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     public boolean mFinishedInflate;
     public boolean mWeatherAvailable;
     public boolean mAttached;
+    private boolean mDestroyed = false;
+    private boolean mPendingDestroy = false;
 
     private boolean mIsAlternateStyle = false;
     private boolean mLastAccentState;
@@ -108,7 +110,7 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
 
     public QuickSpaceView(Context context, AttributeSet set) {
         super(context, set);
-        mController = new QuickspaceController(context);
+        mController = QuickspaceController.getInstance(context);
         mColorStateList = ColorStateList.valueOf(Themes.getAttrColor(getContext(), R.attr.workspaceTextColor));
         mQuickspaceBackgroundRes = R.drawable.bg_quickspace;
         setClipChildren(false);
@@ -116,6 +118,9 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
 
     @Override
     public void onDataUpdated() {
+        if (mDestroyed || mPendingDestroy) {
+            return;
+        }
         int style = Integer.parseInt(LauncherPrefs.QUICKSPACE_UI_STYLE.get(getContext()));
         boolean styleChanged = mCurrentStyle != style;
         if (!mViewsLoaded || styleChanged) {
@@ -131,6 +136,10 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     }
 
     private void updateView(int style) {
+        if (mDestroyed || mPendingDestroy) {
+            return;
+        }
+
         switch (style) {
             case 2:
                 loadLargeStyle();
@@ -145,6 +154,10 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     }
 
     private boolean hasDataChanged() {
+        if (mDestroyed || mPendingDestroy) {
+            return false;
+        }
+
         long currentTime = System.currentTimeMillis();
         if (currentTime - mLastUpdateTime < MIN_UPDATE_INTERVAL) {
             return false;
@@ -184,6 +197,10 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     }
 
     private final void loadDoubleLine(boolean useAlternativeQuickspaceUI) {
+        if (mDestroyed || mPendingDestroy) {
+            return;
+        }
+
         if (mController == null || mController.getEventController() == null) {
             return;
         }
@@ -359,6 +376,10 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     }
 
     private void loadLargeStyle() {
+        if (mDestroyed || mPendingDestroy) {
+            return;
+        }
+
         if (mQuickspaceDayOfWeek == null) return; // Views not inflated for this style
 
         if (mController == null || mController.getEventController() == null) {
@@ -543,6 +564,10 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     }
 
     private void animateIn(View view) {
+        if (mDestroyed || mPendingDestroy || view == null) {
+            return;
+        }
+
         if (view.getVisibility() == View.VISIBLE && view.getAlpha() == 1f) {
             return; // Already visible
         }
@@ -561,7 +586,11 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
         mCurrentAnimateIn.start();
     }
 
-    private void animateOut(View view) {
+     private void animateOut(View view) {
+        if (mDestroyed || mPendingDestroy || view == null) {
+            return;
+        }
+
         if (view.getVisibility() != View.VISIBLE) {
             return; // Already hidden
         }
@@ -615,14 +644,25 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
         }
     }
 
+    private void safeRemoveListener() {
+        if (mController != null && !mDestroyed) {
+            try {
+                mController.removeListener(this);
+            } catch (Exception e) {
+                // Ignore - controller might be destroyed
+            }
+        }
+    }
+
     @Override
     public void onAttachedToWindow() {
         super.onAttachedToWindow();
-        if (mAttached)
+        if (mAttached || mDestroyed || mPendingDestroy) {
             return;
+        }
 
         mAttached = true;
-        if (mController != null && mFinishedInflate) {
+        if (mController != null && mFinishedInflate && !mDestroyed) {
             mController.addListener(this);
         }
     }
@@ -630,11 +670,13 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     @Override
     public void onDetachedFromWindow() {
         super.onDetachedFromWindow();
-        if (!mAttached)
-            return;
+        if (!mAttached) {
+             return;
+        }
 
         cancelAllAnimations();
-        
+        safeRemoveListener();
+
         mAttached = false;
     }
 
@@ -672,22 +714,41 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     }
 
     public void onPause() {
-        mController.onPause();
+        safeRemoveListener();
+        if (mController != null) {
+            mController.onPause();
+        }
+
     }
 
     public void onResume() {
-        if (mController != null && mFinishedInflate) {
+        if (mController != null && mFinishedInflate && !mDestroyed && !mPendingDestroy) {
             mController.addListener(this);
+            mController.onResume();
         }
-        mController.onResume();
+    }
+
+    public void prepareForDestroy() {
+        mPendingDestroy = true;
+        cancelAllAnimations();
+        safeRemoveListener();
+        clearClickListeners();
     }
 
     public void onDestroy() {
+        mDestroyed = true;
+        mPendingDestroy = true;
+
         cancelAllAnimations();
+
+        safeRemoveListener();
 
         clearClickListeners();
 
-        mController.onDestroy();
+        if (mController != null) {
+            // Just remove this view's listener
+            safeRemoveListener();
+        }
         mActionReceiver = null;
         mController = null;
         mBubbleTextView = null;
@@ -712,6 +773,10 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
         mNowPlayingText = null;
         mContextualInfoRow = null;
         setBackground(null);
+        mAttached = false;
+        mFinishedInflate = false;
+        mViewsLoaded = false;
+        mDestroyed = true;
     }
 
     public void setPadding(int n, int n2, int n3, int n4) {

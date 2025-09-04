@@ -75,6 +75,8 @@ public class QuickspaceController implements OmniJawsClient.OmniJawsObserver,
     private final Handler mHandler = MAIN_EXECUTOR.getHandler();
     private final Runnable mPsaRunnable;
     private boolean mPsaScheduled = false;
+    private boolean mDestroyed = false;
+    private static QuickspaceController sInstance; // Static reference leak fix
 
     // Cache for expensive operations
     private String mCachedWeatherTemp;
@@ -84,6 +86,9 @@ public class QuickspaceController implements OmniJawsClient.OmniJawsObserver,
     private Runnable mOnDataUpdatedRunnable = new Runnable() {
             @Override
             public void run() {
+                if (mDestroyed) {
+                    return;
+                }
                 notifyListenersInternal();
             }
         };
@@ -91,6 +96,9 @@ public class QuickspaceController implements OmniJawsClient.OmniJawsObserver,
     private Runnable mWeatherRunnable = new Runnable() {
             @Override
             public void run() {
+                if (mDestroyed) {
+                    return;
+                }
                 try {
                     if (mWeatherClient != null) {
                         mWeatherClient.queryWeather(mContext);
@@ -121,8 +129,14 @@ public class QuickspaceController implements OmniJawsClient.OmniJawsObserver,
         mPsaRunnable = new Runnable() {
             @Override
             public void run() {
+                if (mDestroyed) {
+                    return;
+                }
                 // Run PSA update on background thread to avoid blocking UI
                 MODEL_EXECUTOR.execute(() -> {
+                    if (mDestroyed) {
+                        return;
+                    }
                     long now = System.currentTimeMillis();
                     getPrefs().edit().putLong(PREF_KEY_LAST_PSA_UPDATE_TIME, now).apply();
 
@@ -132,6 +146,10 @@ public class QuickspaceController implements OmniJawsClient.OmniJawsObserver,
                     }
                     
                     // Schedule next update on main thread
+                    if (mDestroyed) {
+                        return;
+                    }
+
                     MAIN_EXECUTOR.execute(() -> {
                         if (mPsaScheduled) {
                             mHandler.postDelayed(this, PSA_UPDATE_DELAY_MS);
@@ -140,6 +158,13 @@ public class QuickspaceController implements OmniJawsClient.OmniJawsObserver,
                 });
             }
         };
+    }
+
+    public static QuickspaceController getInstance(Context context) {
+        if (sInstance == null || sInstance.mDestroyed) {
+            sInstance = new QuickspaceController(context);
+        }
+        return sInstance;
     }
 
 private synchronized void initializeWeatherIfNeeded() {
@@ -179,6 +204,12 @@ private synchronized void initializeMediaIfNeeded() {
 }
 
     public void addListener(OnDataListener listener) {
+        if (mDestroyed || listener == null) {
+            return;
+        }
+        
+        removeListenerInternal(listener); // Remove existing first
+
         // Clean up dead references before adding new one
         cleanupDeadReferences();
         
@@ -211,7 +242,7 @@ private synchronized void initializeMediaIfNeeded() {
     }
     
     private void startPsaScheduling() {
-        if (mPsaScheduled) return;
+        if (mPsaScheduled || mDestroyed) return;
         
         mPsaScheduled = true;
         long lastUpdateTime = getPrefs().getLong(PREF_KEY_LAST_PSA_UPDATE_TIME, 0);
@@ -220,11 +251,15 @@ private synchronized void initializeMediaIfNeeded() {
 
         if (lastUpdateTime == 0 || timeSinceLastUpdate >= PSA_UPDATE_DELAY_MS) {
             // Time is up or it's the first run, execute immediately
-            mHandler.post(mPsaRunnable);
+            if (!mDestroyed) {
+                mHandler.post(mPsaRunnable);
+            }
         } else {
             // Time is not up yet, schedule for the remaining time
             long remainingDelay = PSA_UPDATE_DELAY_MS - timeSinceLastUpdate;
-            mHandler.postDelayed(mPsaRunnable, remainingDelay);
+            if (!mDestroyed) {
+                mHandler.postDelayed(mPsaRunnable, remainingDelay);
+            }
         }
     }
     
@@ -233,7 +268,15 @@ private synchronized void initializeMediaIfNeeded() {
         mHandler.removeCallbacks(mPsaRunnable);
     }
 
-    private void removeListener(OnDataListener listener) {
+    public void removeListener(OnDataListener listener) {
+        removeListenerInternal(listener);
+        
+        if (mListeners.isEmpty()) {
+            cleanup();
+        }
+    }
+    
+    private void removeListenerInternal(OnDataListener listener) {
         synchronized (mListeners) {
             Iterator<WeakReference<OnDataListener>> iterator = mListeners.iterator();
             while (iterator.hasNext()) {
@@ -243,11 +286,6 @@ private synchronized void initializeMediaIfNeeded() {
                     iterator.remove();
                 }
             }
-        }
-        
-        // Clean up resources if no more listeners
-        if (mListeners.isEmpty()) {
-            cleanup();
         }
     }
 
@@ -276,7 +314,14 @@ private synchronized void initializeMediaIfNeeded() {
     }
 
     public boolean isWeatherAvailable() {
-        return mWeatherClient != null && mWeatherClient.isOmniJawsEnabled(mContext);
+        try {
+            return !mDestroyed && 
+                   LauncherPrefs.SHOW_QUICKSPACE_WEATHER.get(mContext) &&
+                   mWeatherClient != null && 
+                   mWeatherClient.isOmniJawsEnabled(mContext);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public Drawable getWeatherIcon() {
@@ -359,7 +404,12 @@ public String getWeatherTemp() {
     }
 
     public void onPause() {
-        // Don't cancel listeners on pause, just stop updates
+        mHandler.removeCallbacks(mOnDataUpdatedRunnable);
+        mHandler.removeCallbacks(mWeatherRunnable);
+        mHandler.removeCallbacks(mPsaRunnable);
+        
+        stopPsaScheduling();
+
         mHandler.removeCallbacks(mOnDataUpdatedRunnable);
     }
 
@@ -379,12 +429,30 @@ public String getWeatherTemp() {
     }
 
     public void onDestroy() {
+        mDestroyed = true;
+        
+        // Clear static reference
+        if (sInstance == this) {
+            sInstance = null;
+        }
+        
+        // Cancel all pending operations immediately
+        mHandler.removeCallbacksAndMessages(null);
+        stopPsaScheduling();
+
         cancelListeners();
         cleanup();
+
         mWeatherClient = null;
         mWeatherInfo = null;
         mConditionImage = null;
         mEventsController = null;
+        mCachedWeatherTemp = null;
+        
+        // Clear listener list
+        synchronized (mListeners) {
+            mListeners.clear();
+        }
     }
 
     private SharedPreferences getPrefs() {
@@ -398,6 +466,10 @@ public String getWeatherTemp() {
 
     @Override
     public void weatherError(int errorReason) {
+        if (mDestroyed) {
+            return;
+        }
+
         if (errorReason == OmniJawsClient.EXTRA_ERROR_DISABLED) {
             mWeatherInfo = null;
             mCachedWeatherTemp = null;
@@ -408,11 +480,14 @@ public String getWeatherTemp() {
 
     @Override
     public void updateSettings() {
-        queryAndUpdateWeather();
+        if (mDestroyed) {
+            return;
+        }
+         queryAndUpdateWeather();
     }
 
     private void queryAndUpdateWeather() {
-        if (mWeatherClient != null) {
+        if (mWeatherClient != null && !mDestroyed) {
             MODEL_EXECUTOR.execute(mWeatherRunnable);
         }
     }
@@ -423,6 +498,9 @@ public String getWeatherTemp() {
     }
 
     private void notifyListenersInternal() {
+        if (mDestroyed) {
+            return;
+        }
         cleanupDeadReferences();
         synchronized (mListeners) {
             for (WeakReference<OnDataListener> ref : mListeners) {
@@ -457,9 +535,17 @@ public String getWeatherTemp() {
            Log.w(TAG, "EventsController is null, skipping media update");
            return;
        }
+       
+       if (mDestroyed) {
+           Log.w(TAG, "EventsController is null, skipping media update");
+           return;
+       }
 
         // Run media processing on background thread
         MODEL_EXECUTOR.execute(() -> {
+            if (mDestroyed) {
+                return;
+            }
             MediaMetadata mediaMetadata = MSMHProxy.INSTANCE(mContext).getCurrentMediaMetadata();
             boolean isPlaying = MSMHProxy.INSTANCE(mContext).isMediaPlaying();
             String trackArtist = isPlaying && mediaMetadata != null ? mediaMetadata.getString(MediaMetadata.METADATA_KEY_ARTIST) : "";
@@ -467,6 +553,9 @@ public String getWeatherTemp() {
             
             // Update on main thread
             MAIN_EXECUTOR.execute(() -> {
+               if (mDestroyed) {
+                   return;
+               }
                if (mEventsController != null) {
                 mEventsController.setMediaInfo(trackTitle, trackArtist, isPlaying);
                 mEventsController.updateQuickEvents();
@@ -478,11 +567,19 @@ public String getWeatherTemp() {
 
     @Override
     public void onMediaMetadataChanged() {
+        if (mDestroyed) {
+            return;
+        }
+
         updateMediaController();
     }
 
     @Override
     public void onPlaybackStateChanged() {
+        if (mDestroyed) {
+            return;
+        }
+
         updateMediaController();
     }
 }
