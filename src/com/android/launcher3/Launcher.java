@@ -1118,6 +1118,7 @@ public class Launcher extends StatefulActivity<LauncherState>
             mOverlayManager.onActivityStopped();
         }
         if (mQuickSpace != null) {
+            mQuickSpace.prepareForDestroy();
             mQuickSpace.onPause();
         }
         hideKeyboard();
@@ -1368,6 +1369,7 @@ public void onStateSetEnd(LauncherState state) {
             mOverlayManager.onActivityPaused();
         }
         if (mQuickSpace != null) {
+            mQuickSpace.prepareForDestroy();
             mQuickSpace.onPause();
         }
         mAppWidgetHolder.setActivityResumed(false);
@@ -1863,6 +1865,7 @@ public void onStateSetEnd(LauncherState state) {
         PillColorProvider.getInstance(mWorkspace.getContext()).unregisterObserver();
 
         if (mQuickSpace != null) {
+            mQuickSpace.prepareForDestroy();
             mQuickSpace.onDestroy();
         }
     }
