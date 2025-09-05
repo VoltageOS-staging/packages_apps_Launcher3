@@ -133,6 +133,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
     protected WorkProfileManager mWorkManager;
     protected final PrivateProfileManager mPrivateProfileManager;
     protected final Point mFastScrollerOffset = new Point();
+    protected final int mScrimColor;
     protected final float mHeaderThreshold;
     protected final AllAppsSearchUiDelegate mSearchUiDelegate;
 
@@ -200,6 +201,8 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         mPersonalMatcher = ItemInfoMatcher.ofCurrentOrDualUser(userManager, Process.myUserHandle());
         mAllAppsStore = new AllAppsStore<>(mActivityContext);
 
+        mScrimColor = ColorUtils.setAlphaComponent(Themes.getAttrColor(context,
+                R.attr.allAppsScrimColor), Utilities.getAllAppsOpacity(context) * 255 / 100);
         mBottomSheetBackgroundColor = mScrimColor;
         mBottomSheetBackgroundAlpha = Color.alpha(mBottomSheetBackgroundColor) / 255.0f;
 
