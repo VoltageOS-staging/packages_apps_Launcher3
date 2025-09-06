@@ -1008,7 +1008,7 @@ public class DeviceProfile {
      * necessary.
      */
     public void recalculateHotseatWidthAndBorderSpace() {
-        if (!(mIsScalableGrid || (isTaskbarPresent && !isLandscape))) return;
+        if ((isTaskbarPresent && !isLandscape)) return;
 
         updateHotseatWidthAndBorderSpace(inv.numColumns);
         int numWorkspaceColumns = getPanelCount() * inv.numColumns;
