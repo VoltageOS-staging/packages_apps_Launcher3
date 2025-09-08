@@ -2,6 +2,7 @@ package com.android.launcher3.qsb;
 
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.graphics.Color;
@@ -52,19 +53,8 @@ public class QsbLayout extends FrameLayout {
         lensIcon = findViewById(R.id.lens_icon);
         inner = findViewById(R.id.inner);
 
-        setUpMainSearch();
-        setUpBackground();
+        applyTheme();
         clipIconRipples();
-
-        boolean isThemed = LauncherPrefs.DOCK_THEME.get(mContext);
-
-        if (Utilities.isMusicSearchEnabled(mContext)) {
-            micIcon.setImageResource(isThemed ? R.drawable.ic_music_themed : R.drawable.ic_music_color);
-        } else {
-            micIcon.setImageResource(isThemed ? R.drawable.ic_mic_themed : R.drawable.ic_mic_color);
-        }
-        gIcon.setImageResource(isThemed ? R.drawable.ic_super_g_themed : R.drawable.ic_super_g_color);
-        lensIcon.setImageResource(isThemed ? R.drawable.ic_lens_themed : R.drawable.ic_lens_color);
 
         setupGIcon();
         setupLensIcon();
@@ -82,12 +72,10 @@ public class QsbLayout extends FrameLayout {
         gIcon.setBackground(pd);
     }
 
-    private void setUpBackground() {
+    private void setUpBackground(boolean isThemed) {
         float cornerRadius = getCornerRadius();
         int alphaValue = (LauncherPrefs.HOTSEAT_QSB_OPACITY.get(mContext) * 255) / 100;
-        int baseColor = Themes.getAttrColor(mContext, R.attr.qsbFillColor);
-        if (LauncherPrefs.DOCK_THEME.get(mContext))
-            baseColor = Themes.getAttrColor(mContext, R.attr.qsbFillColorThemed);
+        int baseColor = isThemed ? Themes.getAttrColor(mContext, R.attr.qsbFillColorThemed) : Themes.getAttrColor(mContext, R.attr.qsbFillColor);
         int color = Color.argb(alphaValue, Color.red(baseColor), Color.green(baseColor), Color.blue(baseColor));
         float strokeWidth = LauncherPrefs.HOTSEAT_QSB_STROKE_WIDTH.get(mContext);
 
@@ -95,7 +83,9 @@ public class QsbLayout extends FrameLayout {
         backgroundDrawable.setCornerRadius(cornerRadius);
 
         if (strokeWidth != 0f) {
-            PaintDrawable strokeDrawable = new PaintDrawable(Themes.getColorAccent(mContext));
+            int strokeColor = isThemed ? Themes.getAttrColor(mContext, R.attr.qsbIconTintPrimary)
+                    : Themes.getColorAccent(mContext);
+            PaintDrawable strokeDrawable = new PaintDrawable(strokeColor);
             strokeDrawable.getPaint().setStyle(Paint.Style.STROKE);
             strokeDrawable.getPaint().setStrokeWidth(strokeWidth);
             strokeDrawable.setCornerRadius(cornerRadius);
@@ -170,5 +160,42 @@ public class QsbLayout extends FrameLayout {
         float qsbWidgetPadding = res.getDimension(R.dimen.qsb_widget_vertical_padding);
         float innerHeight = qsbWidgetHeight - 2 * qsbWidgetPadding;
         return (innerHeight / 2) * ((float)LauncherPrefs.SEARCH_RADIUS_SIZE.get(mContext) / 100f);
+    }
+
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        // Re-apply theme when the view is attached to a window, which happens
+        // when returning to the launcher.
+        applyTheme();
+    }
+
+    private void applyTheme() {
+        boolean isThemed = LauncherPrefs.DOCK_THEME.get(mContext);
+
+        // Update background color based on theme
+        setUpBackground(isThemed);
+
+        // Update icon drawables based on theme
+        if (Utilities.isMusicSearchEnabled(mContext)) {
+            micIcon.setImageResource(isThemed ? R.drawable.ic_music_themed : R.drawable.ic_music_color);
+        } else {
+            micIcon.setImageResource(isThemed ? R.drawable.ic_mic_themed : R.drawable.ic_mic_color);
+        }
+        gIcon.setImageResource(isThemed ? R.drawable.ic_super_g_themed : R.drawable.ic_super_g_color);
+        lensIcon.setImageResource(isThemed ? R.drawable.ic_lens_themed : R.drawable.ic_lens_color);
+
+        // Apply or remove monochrome tints based on theme
+        if (isThemed) {
+            int primary = Themes.getAttrColor(mContext, R.attr.qsbIconTintPrimary);
+            int secondary = Themes.getAttrColor(mContext, R.attr.qsbIconTintSecondary);
+            gIcon.setImageTintList(ColorStateList.valueOf(primary));
+            micIcon.setImageTintList(ColorStateList.valueOf(secondary));
+            lensIcon.setImageTintList(ColorStateList.valueOf(secondary));
+        } else {
+            gIcon.setImageTintList(null);
+            micIcon.setImageTintList(null);
+            lensIcon.setImageTintList(null);
+        }
     }
 }
