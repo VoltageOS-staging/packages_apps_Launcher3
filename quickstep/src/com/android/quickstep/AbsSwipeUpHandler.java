@@ -925,11 +925,13 @@ public abstract class AbsSwipeUpHandler<
         }
 
         MAIN_EXECUTOR.execute(() -> {
-            mLauncherTransitionController.setProgress(
-                    isKeyboardTaskFocusPending()
-                            ? 1f
-                            : Math.max(mCurrentShift.value, getScaleProgressDueToScroll()),
-                    mDragLengthFactor);
+            if (mLauncherTransitionController != null) {
+                mLauncherTransitionController.setProgress(
+                        isKeyboardTaskFocusPending()
+                                ? 1f
+                                : Math.max(mCurrentShift.value, getScaleProgressDueToScroll()),
+                        mDragLengthFactor);
+            }
         });
     }
 
