@@ -2730,7 +2730,8 @@ public abstract class AbsSwipeUpHandler<
                         transformParams, taskViewSimulator, progress)) {
                     continue;
                 }
-                taskViewSimulator.apply(transformParams);
+                SurfaceTransaction surfaceTransaction = transformParams.createSurfaceParams(taskViewSimulator);
+                taskViewSimulator.apply(transformParams, surfaceTransaction);
             }
         }
     }
