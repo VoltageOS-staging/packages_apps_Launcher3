@@ -80,18 +80,12 @@ public class ScreenOnTracker implements SafeCloseable {
         String action = intent.getAction();
         if (ACTION_SCREEN_ON.equals(action)) {
             mIsScreenOn = true;
-            THREAD_POOL_EXECUTOR.execute(() -> {
-                dispatchScreenOnChanged();
-            });
+            dispatchScreenOnChanged();
         } else if (ACTION_SCREEN_OFF.equals(action)) {
             mIsScreenOn = false;
-            THREAD_POOL_EXECUTOR.execute(() -> {
-                dispatchScreenOnChanged();
-            });
+            dispatchScreenOnChanged();
         } else if (ACTION_USER_PRESENT.equals(action)) {
-            THREAD_POOL_EXECUTOR.execute(() -> {
-                dispatchUserPresent();
-            });
+            dispatchUserPresent();
         }
     }
 
