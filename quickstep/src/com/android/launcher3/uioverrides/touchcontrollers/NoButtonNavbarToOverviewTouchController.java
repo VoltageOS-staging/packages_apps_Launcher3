@@ -227,17 +227,26 @@ public class NoButtonNavbarToOverviewTouchController extends PortraitStatesTouch
             return;
         }
         mNormalToHintOverviewScrimAnimator = null;
-        mCurrentAnimation.getTarget().addListener(newSingleUseCancelListener(() ->
-                mLauncher.getStateManager().goToState(OVERVIEW, true, forSuccessCallback(() -> {
-                    mOverviewResistYAnim = AnimatorControllerWithResistance
-                            .createRecentsResistanceFromOverviewAnim(mLauncher, null)
-                            .createPlaybackController();
-                    mReachedOverview = true;
-                    maybeSwipeInteractionToOverviewComplete();
-                }))));
 
-        mCurrentAnimation.getTarget().removeListener(mClearStateOnCancelListener);
-        mCurrentAnimation.dispatchOnCancel();
+        mLauncher.getMainExecutor().execute(() -> {
+            if (mCurrentAnimation == null) {
+                // The state might have changed by the time this runnable executes.
+                return;
+            }
+
+            mCurrentAnimation.getTarget().addListener(newSingleUseCancelListener(() ->
+                    mLauncher.getStateManager().goToState(OVERVIEW, true, forSuccessCallback(() -> {
+                        mOverviewResistYAnim = AnimatorControllerWithResistance
+                                .createRecentsResistanceFromOverviewAnim(mLauncher, null)
+                                .createPlaybackController();
+                        mReachedOverview = true;
+                        maybeSwipeInteractionToOverviewComplete();
+                    }))));
+
+            mCurrentAnimation.getTarget().removeListener(mClearStateOnCancelListener);
+            mCurrentAnimation.dispatchOnCancel();
+        });
+
         mStartedOverview = true;
         VibratorWrapper.INSTANCE.get(mLauncher).vibrate(OVERVIEW_HAPTIC);
     }
