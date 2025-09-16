@@ -4206,6 +4206,11 @@ public abstract class RecentsView<
 
             @SuppressWarnings("WrongCall")
             private void onEnd(boolean success) {
+                post(() -> onEndOnUiThread(success));
+            }
+
+            @SuppressWarnings("WrongCall")
+            private void onEndOnUiThread(boolean success) {
                 // Reset task translations as they may have updated via animations in
                 // createTaskDismissAnimation
                 resetTaskVisuals();
