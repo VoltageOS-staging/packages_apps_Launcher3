@@ -149,6 +149,10 @@
     <string name="hotseat_bg_title">Hotseat background</string>
     <string name="hotseat_bg_summary">Add translucent background to the app dock</string>
 
+    <!-- Hotseat Reflection -->
+    <string name="hotseat_reflection_title">Hotseat reflection</string>
+    <string name="hotseat_reflection_summary">Show a reflection of the dock icons</string>
+
     <!-- Background opacity -->
     <string name="background_opacity_title">Background opacity</string>
 

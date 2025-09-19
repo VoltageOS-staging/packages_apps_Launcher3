@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.
+ * limitations under restlessness License.
  */
 
 package com.android.launcher3;
@@ -23,7 +23,15 @@ import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.LinearGradient;
+import android.graphics.Matrix;
+import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.graphics.Rect;
+import android.graphics.Shader;
 import android.util.AttributeSet;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -90,6 +98,19 @@ public class Hotseat extends CellLayout implements Insettable {
 
     private final View mQsb;
 
+    // REFLECTION: ADDED START
+    // Member variables for the reflection logic
+    private boolean mEnableReflection;
+    private final Paint mReflectionPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Matrix mReflectionMatrix = new Matrix();
+    private Bitmap mReflectionBitmap;
+    private boolean mReflectionDirty = true;
+
+    // Constants for reflection appearance
+    private static final float REFLECTION_GAP = 0f; // Gap between icon and its reflection
+    private static final float REFLECTION_HEIGHT_PERCENT = 0.7f; // How much of the icon is reflected
+    // REFLECTION: ADDED END
+
     public Hotseat(Context context) {
         this(context, null);
     }
@@ -115,6 +136,16 @@ public class Hotseat extends CellLayout implements Insettable {
         mIconsTranslationXFactory = new MultiPropertyFactory<>(getShortcutsAndWidgets(),
                 VIEW_TRANSLATE_X, ICONS_TRANSLATION_X_CHANNELS_COUNT, Float::sum);
         mQsbAlphaChannels = new MultiValueAlpha(mQsb, ALPHA_CHANNEL_CHANNELS_COUNT);
+
+        // REFLECTION: ADDED START
+        // Initialize based on the preference
+        mEnableReflection = LauncherPrefs.SHOW_HOTSEAT_REFLECTION.get(context);
+
+        // This flag is required to draw the reflection below the hotseat
+        if (mEnableReflection) {
+            setWillNotDraw(false);
+        }
+        // REFLECTION: ADDED END
     }
 
     /** Provides translation X for hotseat icons for the channel. */
@@ -339,7 +370,107 @@ public class Hotseat extends CellLayout implements Insettable {
         int bottom = b - t - dp.getQsbOffsetY();
         int top = bottom - dp.hotseatQsbHeight;
         mQsb.layout(left, top, right, bottom);
+
+        // REFLECTION: ADDED START
+        if (mEnableReflection && changed) {
+            mReflectionDirty = true;
+        }
+        // REFLECTION: ADDED END
     }
+
+    // REFLECTION: ADDED START
+    private void createReflection() {
+        ShortcutAndWidgetContainer hotseatIcons = getShortcutsAndWidgets();
+        int width = hotseatIcons.getWidth();
+        int height = hotseatIcons.getHeight();
+
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+
+        // Recycle old bitmap if it exists
+        if (mReflectionBitmap != null) {
+            mReflectionBitmap.recycle();
+        }
+
+        mReflectionBitmap = Bitmap.createBitmap(width, (int) (height * REFLECTION_HEIGHT_PERCENT),
+                Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(mReflectionBitmap);
+
+        // --- NEW APPROACH ---
+        // Iterate through each icon, force it to a software layer, draw it, and then revert.
+        for (int i = 0; i < hotseatIcons.getChildCount(); i++) {
+            View child = hotseatIcons.getChildAt(i);
+            if (child.getVisibility() == View.VISIBLE) {
+                int prevLayerType = child.getLayerType();
+                child.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+
+                canvas.save();
+                // We need to draw the child at its position within the parent container
+                canvas.translate(child.getLeft(), child.getTop());
+                child.draw(canvas);
+                canvas.restore();
+
+                child.setLayerType(prevLayerType, null);
+            }
+        }
+        // --- END NEW APPROACH ---
+
+        mReflectionDirty = false;
+    }
+
+    @Override
+    protected void dispatchDraw(Canvas canvas) {
+        // This is important! Draw the actual icons first.
+        super.dispatchDraw(canvas);
+
+        if (!mEnableReflection) {
+            return;
+        }
+
+        if (mReflectionDirty) {
+            createReflection();
+        }
+
+        if (mReflectionBitmap == null) {
+            return;
+        }
+
+        ShortcutAndWidgetContainer hotseatIcons = getShortcutsAndWidgets();
+        final int drawTop = hotseatIcons.getBottom() + (int) REFLECTION_GAP;
+        final int height = mReflectionBitmap.getHeight();
+
+        // Update shader and paint in case height has changed
+        mReflectionPaint.setShader(new LinearGradient(
+                0, 0, 0, height,
+                0x70FFFFFF, 0x00FFFFFF, // Fades from ~44% white to transparent
+                Shader.TileMode.CLAMP));
+        mReflectionPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
+
+        canvas.save();
+        // Position the canvas for drawing the reflection
+        canvas.translate(hotseatIcons.getLeft(), drawTop);
+
+        // Create the flipped matrix
+        mReflectionMatrix.reset();
+        mReflectionMatrix.preScale(1, -1);
+
+        // Create the flipped bitmap
+        Bitmap reflectionImage = Bitmap.createBitmap(mReflectionBitmap, 0, 0,
+                mReflectionBitmap.getWidth(), mReflectionBitmap.getHeight(), mReflectionMatrix, false);
+
+        // Draw the flipped image
+        canvas.drawBitmap(reflectionImage, 0, 0, null);
+
+        // Draw the gradient mask over the flipped image
+        canvas.drawRect(0, 0, reflectionImage.getWidth(), reflectionImage.getHeight(), mReflectionPaint);
+
+        canvas.restore();
+
+        // Clean up the temporary bitmap
+        reflectionImage.recycle();
+    }
+    // REFLECTION: ADDED END
 
     /**
      * Sets the alpha value of the specified alpha channel of just our ShortcutAndWidgetContainer.

@@ -136,6 +136,13 @@
             android:dependency="pref_show_hotseat_bg"
             android:defaultValue="40" />
 
+        <SwitchPreferenceCompat
+            android:key="pref_show_hotseat_reflection"
+            android:title="@string/hotseat_reflection_title"
+            android:summary="@string/hotseat_reflection_summary"
+            android:defaultValue="false"
+            launcher:iconSpaceReserved="false" />
+
     </PreferenceCategory>
 
     <PreferenceCategory
