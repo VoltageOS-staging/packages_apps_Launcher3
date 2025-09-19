@@ -103,17 +103,25 @@ public class ViewUtils {
         }
 
         private boolean schedule() {
-            if (mViewRoot != null && mViewRoot.getView() != null) {
-                if (!mSurfaceCallbackRegistered) {
-                    mSurfaceCallbackRegistered = true;
-                    mViewRoot.addSurfaceChangedCallback(this);
-                }
-                mViewRoot.registerRtFrameCallback(this);
-                mViewRoot.getView().invalidate();
-                return true;
-            }
-            return false;
-        }
+            if (mViewRoot == null || mViewRoot.getView() == null) {
+                return false;
+    	    }
+
+    	    mViewRoot.getView().post(() -> {
+        	if (mViewRoot == null || mViewRoot.getView() == null || mFinished) {
+            	    return;
+        	}
+
+        	if (!mSurfaceCallbackRegistered) {
+            	    mSurfaceCallbackRegistered = true;
+            	    mViewRoot.addSurfaceChangedCallback(this);
+        	}
+        	mViewRoot.registerRtFrameCallback(this);
+        	mViewRoot.getView().invalidate();
+    	    });
+
+    	    return true;
+	}
 
         private void finish() {
             if (mFinished) {
