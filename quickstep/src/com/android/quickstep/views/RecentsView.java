@@ -1285,6 +1285,10 @@ public abstract class RecentsView<
         if (mDesktopVisibilityController != null) {
             mDesktopVisibilityController.unregisterDesktopVisibilityListener(this);
         }
+        if (mMemInfoView != null) {
+            mMemInfoView.setVisibility(GONE);
+            mMemInfoView.stopMemoryMonitoring();
+        }
         reset();
     }
 
