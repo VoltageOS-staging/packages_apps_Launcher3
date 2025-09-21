@@ -148,6 +148,7 @@ import com.android.launcher3.BaseActivity.MultiWindowModeChangedListener;
 import com.android.launcher3.DeviceProfile;
 import com.android.launcher3.Flags;
 import com.android.launcher3.Insettable;
+import com.android.launcher3.LauncherPrefs;
 import com.android.launcher3.PagedView;
 import com.android.launcher3.R;
 import com.android.launcher3.Utilities;
@@ -2274,7 +2275,6 @@ public abstract class RecentsView<
         float alpha = mapToRange(fullscreenProgress, 0, 0.1f, 1f, 0f, LINEAR);
         mActionsView.getFullscreenAlpha().updateValue(alpha);
         mMemInfoView.setAlpha(MemInfoView.ALPHA_FS_PROGRESS, alpha);
-        mMemInfoView.setVisibility(alpha > 0f ? View.VISIBLE : View.GONE);
     }
 
     private void updateTaskStackListenerState() {
@@ -4909,6 +4909,15 @@ public abstract class RecentsView<
             mActionsView.updateHiddenFlags(HIDDEN_NO_RECENTS, visibility != VISIBLE);
             if (visibility != VISIBLE) {
                 mActionsView.updateDisabledFlags(OverviewActionsView.DISABLED_SCROLLING, false);
+            }
+        }
+        if (mMemInfoView != null) {
+            if (visibility == VISIBLE && LauncherPrefs.RECENTS_MEMINFO.get(getContext())) {
+                mMemInfoView.startMemoryMonitoring();
+                mMemInfoView.setVisibility(VISIBLE);
+            } else {
+                mMemInfoView.setVisibility(GONE);
+                mMemInfoView.stopMemoryMonitoring();
             }
         }
     }

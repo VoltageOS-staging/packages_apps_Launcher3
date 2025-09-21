@@ -111,19 +111,6 @@ public class MemInfoView extends TextView implements Insettable {
     }
 
     @Override
-    protected void onAttachedToWindow() {
-        super.onAttachedToWindow();
-        boolean showMeminfo = LauncherPrefs.RECENTS_MEMINFO.get(getContext());
-        if (!showMeminfo) {
-            setVisibility(GONE);
-            stopMemoryMonitoring();
-        } else {
-            startMemoryMonitoring();
-            setVisibility(VISIBLE);
-        }
-    }
-
-    @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         stopMemoryMonitoring();
@@ -243,16 +230,17 @@ public class MemInfoView extends TextView implements Insettable {
         return totalBackgroundMemory;
     }
 
-    private void startMemoryMonitoring() {
+    public void startMemoryMonitoring() {
         if (mHandler == null) {
             mHandler = MODEL_EXECUTOR.getHandler();
         }
         mHandler.post(mWorker);
     }
 
-    private void stopMemoryMonitoring() {
+    public void stopMemoryMonitoring() {
         if (mHandler != null) {
-            mHandler.removeCallbacksAndMessages(mWorker);
+            mHandler.removeCallbacks(mWorker);
+            mHandler.removeCallbacksAndMessages(null);
             mHandler = null;
         }
     }
@@ -289,8 +277,8 @@ public class MemInfoView extends TextView implements Insettable {
             MAIN_EXECUTOR.getHandler().post(() -> view.setText(text));
 
             if (view.mHandler != null) {
-                view.mHandler.removeCallbacksAndMessages(this);
-                view.mHandler.postDelayed(this, 1500);
+                view.mHandler.removeCallbacks(this);
+                view.mHandler.postDelayed(this, 3000);
             }
         }
     }
