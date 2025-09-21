@@ -233,8 +233,8 @@ public class MemInfoView extends TextView implements Insettable {
     public void startMemoryMonitoring() {
         if (mHandler == null) {
             mHandler = MODEL_EXECUTOR.getHandler();
+            mHandler.post(mWorker);
         }
-        mHandler.post(mWorker);
     }
 
     public void stopMemoryMonitoring() {
