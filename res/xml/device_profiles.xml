@@ -255,7 +255,6 @@
         launcher:numExtendedHotseatIcons="6"
         launcher:dbFile="launcher_4_by_6.db"
         launcher:isScalable="true"
-        launcher:folderStyle="@style/Folder4x5Style"
         launcher:inlineNavButtonsEndSpacing="@dimen/taskbar_button_margin_split"
         launcher:defaultLayoutId="@xml/default_workspace_4x6"
         launcher:deviceCategory="phone|multi_display" >
@@ -477,7 +476,6 @@
         launcher:numHotseatIcons="6"
         launcher:dbFile="launcher_6_by_7.db"
         launcher:isScalable="true"
-        launcher:folderStyle="@style/Folder5x7Style"
         launcher:inlineNavButtonsEndSpacing="@dimen/taskbar_button_margin_split"
         launcher:defaultLayoutId="@xml/default_workspace_6x7"
         launcher:deviceCategory="phone|multi_display" >
