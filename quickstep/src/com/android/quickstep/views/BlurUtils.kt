@@ -16,11 +16,14 @@
 
 package com.android.quickstep.views
 
+import android.os.Handler
 import com.android.launcher3.Flags.enableOverviewBackgroundWallpaperBlur
 import com.android.quickstep.RemoteTargetGluer.RemoteTargetHandle
 
 /** Applies blur either behind launcher surface or live tile app. */
 class BlurUtils(private val recentsView: RecentsView<*, *>) {
+
+    private val mainHandler = Handler()
 
     fun setDrawLiveTileBelowRecents(drawBelowRecents: Boolean) {
         val liveTileRemoteTargetHandles =
@@ -41,10 +44,35 @@ class BlurUtils(private val recentsView: RecentsView<*, *>) {
         drawBelowRecents: Boolean,
         remoteTargetHandles: Array<RemoteTargetHandle>? = null,
     ) {
+        setDrawBelowRecents(drawBelowRecents, remoteTargetHandles, false)
+    }
+
+    /**
+     * Set surface in [remoteTargetHandles] to be above or below Recents layer, and update the base
+     * layer to apply blur to in BaseDepthController.
+     */
+    fun setDrawBelowRecents(
+        drawBelowRecents: Boolean,
+        remoteTargetHandles: Array<RemoteTargetHandle>? = null,
+        waitForScrim: Boolean = false,
+    ) {
         remoteTargetHandles?.forEach { it.taskViewSimulator.setDrawsBelowRecents(drawBelowRecents) }
         if (enableOverviewBackgroundWallpaperBlur()) {
+            if (waitForScrim && !drawBelowRecents) {
+                // Defer blur change to next frame to ensure scrim is rendered first
+                mainHandler.post { updateBlurTarget(drawBelowRecents, remoteTargetHandles) }
+            } else {
+                updateBlurTarget(drawBelowRecents, remoteTargetHandles)
+            }
+        }
+    }
+
+    private fun updateBlurTarget(
+        drawBelowRecents: Boolean,
+        remoteTargetHandles: Array<RemoteTargetHandle>?
+    ) {
+        if (enableOverviewBackgroundWallpaperBlur()) {
             recentsView.depthController?.setBaseSurfaceOverride(
-                // Blurs behind launcher layer.
                 if (!drawBelowRecents || remoteTargetHandles == null) {
                     null
                 } else {

@@ -7207,6 +7207,7 @@ public abstract class RecentsView<
      */
     public void setDrawBelowRecents(boolean drawBelowRecents,
             RemoteTargetHandle[] remoteTargetHandles) {
-        mBlurUtils.setDrawBelowRecents(drawBelowRecents, remoteTargetHandles);
+            mBlurUtils.setDrawBelowRecents(drawBelowRecents, remoteTargetHandles, 
+                !drawBelowRecents && isHandlingTouch());
     }
 }

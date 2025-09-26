@@ -48,6 +48,9 @@ public class ScrimView extends View implements Insettable {
     private boolean mLastDispatchedOpaqueness;
     private float mHeaderScale = 1f;
 
+    private boolean mBlurReady = false;
+    private Runnable mBlurReadyCallback;
+
     public ScrimView(Context context, AttributeSet attrs) {
         super(context, attrs);
         setFocusable(false);
@@ -97,6 +100,14 @@ public class ScrimView extends View implements Insettable {
         if (mDrawingController != null) {
             mDrawingController.drawOnScrimWithScale(canvas, mHeaderScale);
         }
+
+        if (!mBlurReady && getVisibility() == VISIBLE && getAlpha() > 0) {
+            mBlurReady = true;
+            if (mBlurReadyCallback != null) {
+                mBlurReadyCallback.run();
+                mBlurReadyCallback = null;
+            }
+        }
     }
 
     /** Set scrim header's scale and bottom offset. */
@@ -111,6 +122,7 @@ public class ScrimView extends View implements Insettable {
     @Override
     protected void onVisibilityChanged(View changedView, int visibility) {
         super.onVisibilityChanged(changedView, visibility);
+        if (visibility != VISIBLE) mBlurReady = false;
         updateSysUiColors();
     }
 
@@ -181,6 +193,14 @@ public class ScrimView extends View implements Insettable {
      */
     public void removeOpaquenessListener(@NonNull Runnable listener) {
         mOpaquenessListeners.remove(listener);
+    }
+
+    public void setBlurReadyCallback(Runnable callback) {
+        if (mBlurReady) {
+            callback.run();
+        } else {
+            mBlurReadyCallback = callback;
+        }
     }
 
     /**
