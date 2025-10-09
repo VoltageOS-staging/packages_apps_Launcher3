@@ -3812,6 +3812,9 @@ public abstract class RecentsView<
             boolean dismissingForSplitSelection, boolean isExpressiveDismiss) {
         if (mPendingAnimation != null) {
             mPendingAnimation.createPlaybackController().dispatchOnCancel().dispatchOnEnd();
+            if (!mScroller.isFinished()) {
+                mScroller.abortAnimation();
+            }
         }
 
         int count = getPageCount();
