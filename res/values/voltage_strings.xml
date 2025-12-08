@@ -608,4 +608,10 @@
     <!-- Message shown when all home screen views are removed -->
     <string name="home_screen_all_views_removed_msg">Home screen cleared</string>
 
+    <!-- Recents style -->
+    <string name="recents_style_title">Recents layout style</string>
+    <string name="recents_style_stock">Stock</string>
+    <string name="recents_style_staple">Kami Style</string>
+    <string name="recents_style_ios">iOS Style</string>
+    <string name="recents_style_oxygen">OxygenOS Style</string>
 </resources>
