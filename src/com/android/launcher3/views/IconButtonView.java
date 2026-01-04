@@ -144,7 +144,7 @@ public class IconButtonView extends BubbleTextView {
         @Override
         public FastBitmapDrawableDelegate newDelegate(@NonNull BitmapInfo bitmapInfo,
                 @NonNull IconShape iconShape, @NonNull Paint paint,
-                @NonNull FastBitmapDrawable host) {
+                @NonNull FastBitmapDrawable host, int creationFlags) {
             return new IconDelegate(paint, colorBg, fg);
         }
     }

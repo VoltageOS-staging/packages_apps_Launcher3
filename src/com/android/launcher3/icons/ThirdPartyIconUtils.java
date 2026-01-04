@@ -1,5 +1,7 @@
 package com.android.launcher3.icons;
 
+import android.annotation.SuppressLint;
+
 import android.content.Context;
 import android.graphics.drawable.Drawable;
 
@@ -11,7 +13,10 @@ import com.android.launcher3.icons.clock.DynamicClock;
 import com.android.launcher3.icons.pack.IconPackManager;
 import com.android.launcher3.icons.pack.IconResolver;
 
+import static com.android.launcher3.icons.BaseIconFactory.CONFIG_HINT_NO_WRAP;
+
 class ThirdPartyIconUtils {
+    @SuppressLint("WrongConstant")
     static Drawable getByKey(Context context, ComponentKey key, int iconDpi,
                              IconResolver.DefaultDrawableProvider fallback) {
         IconResolver resolver = IconPackManager.get(context).resolve(key);
@@ -34,6 +39,9 @@ class ThirdPartyIconUtils {
             return DynamicCalendar.load(context, key.componentName, iconDpi);
         }
 
+        if (icon != null) {
+            icon.setChangingConfigurations(icon.getChangingConfigurations() | CONFIG_HINT_NO_WRAP);
+        }
         return icon;
     }
 }

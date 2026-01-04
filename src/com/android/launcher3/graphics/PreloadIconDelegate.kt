@@ -469,13 +469,14 @@ class PreloadIconDelegate(
             iconShape: IconShape,
             paint: Paint,
             host: FastBitmapDrawable,
+            creationFlags: Int,
         ): FastBitmapDrawableDelegate {
             return PreloadIconDelegate(
                 info,
                 isDarkTheme,
                 iconShape,
                 host,
-                parentFactory.newDelegate(bitmapInfo, iconShape, paint, host),
+                parentFactory.newDelegate(bitmapInfo, iconShape, paint, host, creationFlags),
                 themedSeedColor,
                 themedSeedColorDark,
                 themedProgressColor,

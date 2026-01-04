@@ -1,5 +1,7 @@
 package com.android.launcher3.icons.pack;
 
+import android.annotation.SuppressLint;
+
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
@@ -8,6 +10,8 @@ import android.graphics.drawable.Drawable;
 import java.util.Calendar;
 
 import com.android.launcher3.icons.clock.CustomClock;
+
+import static com.android.launcher3.icons.BaseIconFactory.CONFIG_HINT_NO_WRAP;
 
 public class IconResolverExternal implements IconResolver {
     private final PackageManager mPm;
@@ -44,6 +48,7 @@ public class IconResolverExternal implements IconResolver {
         );
     }
 
+    @SuppressLint("WrongConstant")
     public Drawable getIcon(int iconDpi, DefaultDrawableProvider fallback) {
         try {
             Resources res = mPm.getResourcesForApplication(mPackInfo);
@@ -64,6 +69,8 @@ public class IconResolverExternal implements IconResolver {
 
                     drawable = mPm.getDrawable(mPackInfo.packageName, drawableId, null);
                     if (drawable != null) {
+                        drawable.setChangingConfigurations(
+                            drawable.getChangingConfigurations() | CONFIG_HINT_NO_WRAP);
                         return drawable;
                     }
                 }
@@ -73,13 +80,21 @@ public class IconResolverExternal implements IconResolver {
                 // Fall back to mipmap loading with correct density.
                 Drawable drawable = res.getDrawableForDensity(mDrawableId, iconDpi, null);
                 if (drawable != null) {
+                            drawable.setChangingConfigurations(
+                                drawable.getChangingConfigurations() | CONFIG_HINT_NO_WRAP);
+                    drawable.setChangingConfigurations(
+                        drawable.getChangingConfigurations() | CONFIG_HINT_NO_WRAP);
                     return drawable;
                 }
             }
         } catch (PackageManager.NameNotFoundException | Resources.NotFoundException ignored) {
         }
 
+        Drawable drawable = mPm.getDrawable(mPackInfo.packageName, mDrawableId, mPackInfo);
+        if (drawable != null) {
+            drawable.setChangingConfigurations(drawable.getChangingConfigurations() | CONFIG_HINT_NO_WRAP);
+        }
+        return drawable;
         // Finally, try directly returning the drawable.
-        return mPm.getDrawable(mPackInfo.packageName, mDrawableId, mPackInfo);
     }
 }

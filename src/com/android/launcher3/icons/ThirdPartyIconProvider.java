@@ -16,6 +16,8 @@ import javax.inject.Inject;
 
 import static com.android.launcher3.icons.BaseIconFactory.CONFIG_HINT_NO_WRAP;
 
+import static com.android.launcher3.icons.BitmapInfo.FLAG_CUSTOM_SHAPE;
+
 @LauncherAppSingleton
 public class ThirdPartyIconProvider extends LauncherIconProvider {
 
@@ -45,10 +47,11 @@ public class ThirdPartyIconProvider extends LauncherIconProvider {
                 () -> super.getIcon(info, iconDpi);
         Drawable icon = ThirdPartyIconUtils.getByKey(mContext, key, iconDpi, fallback);
 
-        if (icon == null) {
-            return fallback.get();
+        if (icon != null) {
+            icon.setChangingConfigurations(
+                icon.getChangingConfigurations() | CONFIG_HINT_NO_WRAP);
+            return icon;
         }
-        icon.setChangingConfigurations(icon.getChangingConfigurations() | CONFIG_HINT_NO_WRAP);
-        return icon;
+        return fallback.get();
     }
 }

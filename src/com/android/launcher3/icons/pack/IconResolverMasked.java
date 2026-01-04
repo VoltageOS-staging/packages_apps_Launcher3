@@ -17,7 +17,7 @@ import android.graphics.drawable.Drawable;
 
 import com.android.launcher3.icons.BaseIconFactory;
 import com.android.launcher3.icons.LauncherIcons;
-import static com.android.launcher3.icons.LauncherIcons.CONFIG_HINT_NO_WRAP;
+import static com.android.launcher3.icons.BaseIconFactory.CONFIG_HINT_NO_WRAP;
 
 import com.android.launcher3.icons.clock.CustomClock;
 
@@ -89,7 +89,11 @@ public class IconResolverMasked implements IconResolver {
                 uponBitmap(iconBm, res.getDrawableForDensity(iconUpon, iconDpi, null));
             }
 
-            return new BitmapDrawable(mContext.getResources(), iconBm);
+            BitmapDrawable result = new BitmapDrawable(mContext.getResources(), iconBm);
+            result.setChangingConfigurations(
+                result.getChangingConfigurations() | CONFIG_HINT_NO_WRAP
+            );
+            return result;
         } catch (PackageManager.NameNotFoundException | Resources.NotFoundException e) {
             e.printStackTrace();
         }

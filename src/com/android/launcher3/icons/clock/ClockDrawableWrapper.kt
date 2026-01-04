@@ -25,7 +25,8 @@ object ClockDrawableWrapper {
                 info: BitmapInfo,
                 shape: IconShape,
                 paint: Paint,
-                host: FastBitmapDrawable
+                host: FastBitmapDrawable,
+                creationFlags: Int,
             ): FastBitmapDrawableDelegate {
                 val delegate = AutoUpdateClock(host, layers)
                 registerUpdater.accept(delegate)
