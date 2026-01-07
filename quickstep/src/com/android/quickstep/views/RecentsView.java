@@ -151,6 +151,7 @@ import com.android.launcher3.AbstractFloatingView;
 import com.android.launcher3.BuildConfig;
 import com.android.launcher3.DeviceProfile;
 import com.android.launcher3.Insettable;
+import com.android.launcher3.LauncherPrefs;
 import com.android.launcher3.MotionEventsUtils;
 import com.android.launcher3.PagedView;
 import com.android.launcher3.R;
@@ -2345,8 +2346,11 @@ public abstract class RecentsView<
 
         // Update DeviceProfile dependant state.
         DeviceProfile dp = mContainer.getDeviceProfile();
+
+        boolean useGrid = LauncherPrefs.RECENTS_GRID.get(getContext());
+
         setOverviewGridEnabled(
-                getStateManager().getState().displayOverviewTasksAsGrid(dp));
+                useGrid && getStateManager().getState().displayOverviewTasksAsGrid(dp));
         if (enableGridOnlyOverview()) {
             mActionsView.updateHiddenFlags(HIDDEN_ACTIONS_IN_MENU, dp.getDeviceProperties().isTablet());
         }

@@ -38,6 +38,7 @@ import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceFragmentCompat.OnPreferenceStartFragmentCallback;
 import androidx.preference.PreferenceFragmentCompat.OnPreferenceStartScreenCallback;
 import androidx.preference.PreferenceGroup;
+import androidx.preference.SwitchPreferenceCompat;
 import androidx.preference.PreferenceGroup.PreferencePositionCallback;
 import androidx.preference.PreferenceScreen;
 import androidx.recyclerview.widget.RecyclerView;
@@ -185,6 +186,16 @@ public class SettingsRecents extends CollapsingToolbarBaseActivity
             getPreferenceManager().setSharedPreferencesName(LauncherFiles.SHARED_PREFERENCES_KEY);
             setPreferencesFromResource(R.xml.launcher_recents_preferences, rootKey);
 
+            SwitchPreferenceCompat gridPref = findPreference(LauncherPrefs.RECENTS_GRID.getSharedPrefKey());
+            if (gridPref != null) {
+                gridPref.setOnPreferenceChangeListener((preference, newValue) -> {
+                    boolean isGridEnabled = (Boolean) newValue;
+                    setActionPreferencesEnabled(!isGridEnabled);
+                    return true;
+                });
+                setActionPreferencesEnabled(!gridPref.isChecked());
+            }
+
             PreferenceScreen screen = getPreferenceScreen();
 
             // If the target preference is not in the current preference screen, find the parent
@@ -205,6 +216,27 @@ public class SettingsRecents extends CollapsingToolbarBaseActivity
 
             if (getActivity() != null && !TextUtils.isEmpty(getPreferenceScreen().getTitle())) {
                 getActivity().setTitle(getPreferenceScreen().getTitle());
+            }
+        }
+
+        /**
+         * Helper to enable/disable the preferences for the Overview Action Buttons.
+         * These buttons (Screenshot, Lens, Clear All) typically do not appear in Grid Layout.
+         */
+        private void setActionPreferencesEnabled(boolean enabled) {
+            Preference screenshotPref = findPreference(LauncherPrefs.RECENTS_SCREENSHOT.getSharedPrefKey());
+            if (screenshotPref != null) {
+                screenshotPref.setEnabled(enabled);
+            }
+
+            Preference lensPref = findPreference(LauncherPrefs.RECENTS_LENS.getSharedPrefKey());
+            if (lensPref != null) {
+                lensPref.setEnabled(enabled);
+            }
+
+            Preference clearAllPref = findPreference(LauncherPrefs.RECENTS_CLEAR_ALL.getSharedPrefKey());
+            if (clearAllPref != null) {
+                clearAllPref.setEnabled(enabled);
             }
         }
 

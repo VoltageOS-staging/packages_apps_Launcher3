@@ -32,6 +32,7 @@ import android.view.MotionEvent;
 import androidx.annotation.Nullable;
 
 import com.android.launcher3.Launcher;
+import com.android.launcher3.LauncherPrefs;
 import com.android.launcher3.LauncherState;
 import com.android.launcher3.desktop.DesktopRecentsTransitionController;
 import com.android.launcher3.logging.StatsLogManager;
@@ -133,8 +134,11 @@ public class LauncherRecentsView extends RecentsView<QuickstepLauncher, Launcher
         setOverviewStateEnabled(toState.isRecentsViewVisible);
 
         if (enableGridOnlyOverview()) {
-            if (toState.displayOverviewTasksAsGrid(mContainer.getDeviceProfile())) {
+            boolean useGrid = LauncherPrefs.RECENTS_GRID.get(getContext());
+            if (useGrid && toState.displayOverviewTasksAsGrid(mContainer.getDeviceProfile())) {
                 setOverviewGridEnabled(true);
+            } else if (!useGrid) {
+                setOverviewGridEnabled(false);
             }
         } else {
             setOverviewGridEnabled(

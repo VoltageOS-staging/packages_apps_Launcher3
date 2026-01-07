@@ -38,6 +38,13 @@
             launcher:iconSpaceReserved="false" />
     </PreferenceCategory>
 
+        <SwitchPreferenceCompat
+            android:key="pref_recents_grid"
+            android:title="@string/recents_grid_title"
+            android:summary="@string/recents_grid_summary"
+            android:persistent="true"
+            launcher:iconSpaceReserved="false" />
+
     <PreferenceCategory
         android:title="@string/actions_category_title">
 
