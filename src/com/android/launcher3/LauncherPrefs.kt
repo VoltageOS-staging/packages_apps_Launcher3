@@ -283,7 +283,7 @@ constructor(@ApplicationContext private val encryptedContext: Context) {
         val RECENTS_GRID =
             backedUpItem("pref_recents_grid", Boolean::class.java) {
                 val dp = LauncherAppState.getIDP(it).getDeviceProfile(it)
-                dp.isTablet
+                dp.deviceProperties.isTablet
             }
         @JvmField val RECENTS_SCREENSHOT = backedUpItem("pref_recents_screenshot", true)
         @JvmField val ROW_HEIGHT = backedUpItem("pref_row_height", 100)
