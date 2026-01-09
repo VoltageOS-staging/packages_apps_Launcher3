@@ -493,6 +493,59 @@ public class OtherActivityInputConsumer extends ContextWrapper implements InputC
         }
 
         boolean isCanceled = ev.getActionMasked() == ACTION_CANCEL;
+        
+        // Check if this was just a tap (minimal displacement). Even if mPassedWindowMoveSlop
+        // became true due to touch slop, if the total displacement is still minimal, treat it
+        // as a tap and skip gesture processing entirely.
+        float displacementX = mLastPos.x - mDownPos.x;
+        float displacementY = mLastPos.y - mDownPos.y;
+        float squaredDisplacement = displacementX * displacementX + displacementY * displacementY;
+        // Use 2x touch slop as threshold - if displacement is below this, it's a tap
+        // This threshold is larger than touch slop to account for sensor noise while still
+        // catching actual taps. Compare squared values to avoid sqrt calculation.
+        float tapThreshold = 2 * mTouchSlop;
+        boolean isTap = squaredDisplacement < tapThreshold * tapThreshold;
+        
+        if (DEBUG) {
+            float totalDisplacement = (float) Math.sqrt(squaredDisplacement);
+            Log.d(TAG, "finishTouchTracking: totalDisplacement=" + totalDisplacement
+                    + ", 2*touchSlop=" + tapThreshold + ", isTap=" + isTap);
+        }
+        
+        // For taps, skip all gesture processing and just clean up the animation
+        // This prevents taps from being interpreted as swipe gestures that go to home
+        if (isTap) {
+            if (DEBUG) {
+                Log.d(TAG, "finishTouchTracking: Detected tap, canceling gesture and animation");
+            }
+            // Cancel any gesture handler to prevent it from processing the tap as a gesture
+            if (mInteractionHandler != null) {
+                mInteractionHandler.onGestureCancelled();
+            }
+            // Clean up the animation without going to home
+            // Use forceFinish=true for canceled taps to prevent flickering
+            // For normal taps, forceFinish=false allows smooth cancellation
+            if (mActiveCallbacks != null && mInteractionHandler != null) {
+                if (mTaskAnimationManager.isRecentsAnimationRunning()) {
+                    // Force finish immediately to prevent flickering/jumping to home
+                    mTaskAnimationManager.finishRunningRecentsAnimation(
+                            /* toHome= */ false,
+                            /* forceFinish= */ isCanceled,
+                            mForceFinishRecentsTransitionCallback,
+                            /* reason= */ new ActiveGestureLog.CompoundString(
+                                    "OtherActivityInputConsumer.finishTouchTracking: "
+                                            + "tap detected, canceling animation"));
+                } else {
+                    mActiveCallbacks.addListener(mCleanupHandler);
+                }
+            }
+            onConsumerAboutToBeSwitched();
+            onInteractionGestureFinished();
+            cleanupAfterGesture();
+            TraceHelper.INSTANCE.endSection();
+            return;
+        }
+        
         if (mPassedWindowMoveSlop && mInteractionHandler != null) {
             if (isCanceled) {
                 mInteractionHandler.onGestureCancelled();
