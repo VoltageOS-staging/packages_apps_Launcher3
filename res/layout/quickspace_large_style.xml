@@ -188,6 +188,15 @@
                 android:alpha="0.6"
                 android:singleLine="true" />
 
+            <!-- Dots Indicator -->
+            <LinearLayout
+                android:id="@+id/battery_dots_container"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginStart="8dp"
+                android:gravity="center_vertical" />
+
         </LinearLayout>
     </FrameLayout>
 

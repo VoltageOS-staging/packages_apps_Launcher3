@@ -4,8 +4,14 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.SystemClock;
 
 import com.android.launcher3.LauncherPrefs;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public class QuickBatteryController {
 
@@ -13,29 +19,107 @@ public class QuickBatteryController {
     private static final String ACTION_BLUETOOTH_BATTERY_UPDATE =
             "com.android.systemui.action.BLUETOOTH_BATTERY_UPDATE";
 
+    private static final long SESSION_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
     private final Context mContext;
     private final QuickspaceController mController;
     private boolean mRegistered = false;
 
-    private String mDeviceName = null;
-    private int mBatteryLevel = -1;
-    private boolean mIsAudio = false;
+    // Helper class to store device info
+    public static class BatteryDevice {
+        public String name;
+        public int level;
+        public boolean isAudio;
+
+        public BatteryDevice(String name, int level, boolean isAudio) {
+            this.name = name;
+            this.level = level;
+            this.isAudio = isAudio;
+        }
+    }
+
+    private final List<BatteryDevice> mDevices = new ArrayList<>();
+    
+    // Smart State Tracking
+    private String mCurrentDeviceName = null;
+    private int mCurrentIndex = 0;
+    private long mLastInteractionTime = 0;
+    private final Set<String> mAlertedDevices = new HashSet<>();
 
     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             if (ACTION_BLUETOOTH_BATTERY_UPDATE.equals(intent.getAction())) {
-                boolean isConnected = intent.getBooleanExtra("is_connected", false);
+                // Clear old list
+                mDevices.clear();
+                
+                // Read Lists from Intent (Requires updated FWB patch)
+                ArrayList<String> names = intent.getStringArrayListExtra("device_list_names");
+                ArrayList<Integer> levels = intent.getIntegerArrayListExtra("device_list_levels");
+                ArrayList<String> audioFlags = intent.getStringArrayListExtra("device_list_audio");
 
-                if (isConnected) {
-                    mDeviceName = intent.getStringExtra("device_name");
-                    mBatteryLevel = intent.getIntExtra("battery_level", -1);
-                    mIsAudio = intent.getBooleanExtra("is_audio", false);
+                // Populate local list
+                if (names != null && levels != null && !names.isEmpty()) {
+                    for (int i = 0; i < names.size(); i++) {
+                        boolean isAudio = false;
+                        if (audioFlags != null && i < audioFlags.size()) {
+                            // "true" / "false" strings because Intent bool array is buggy across processes sometimes
+                            isAudio = Boolean.parseBoolean(audioFlags.get(i));
+                        }
+                        mDevices.add(new BatteryDevice(names.get(i), levels.get(i), isAudio));
+                    }
+
+                    // --- SMART SELECTION LOGIC ---
+
+                    // 1. TIMEOUT CHECK: Reset to primary (0) if session expired (screen off/idle)
+                    if (SystemClock.elapsedRealtime() - mLastInteractionTime > SESSION_TIMEOUT_MS) {
+                        mCurrentDeviceName = null; // Will cause default to index 0 below
+                    }
+
+                    // 2. STABLE RESTORE: Find index of previously selected device by Name
+                    // (Prevents UI jumping if a device connects/disconnects and shifts the list)
+                    int newIndex = 0;
+                    if (mCurrentDeviceName != null) {
+                        for (int i = 0; i < mDevices.size(); i++) {
+                            if (mDevices.get(i).name.equals(mCurrentDeviceName)) {
+                                newIndex = i;
+                                break;
+                            }
+                        }
+                    }
+                    mCurrentIndex = newIndex;
+
+                    // 3. URGENT LOW OVERRIDE
+                    // If a device drops to Critical (<15%) and we haven't alerted yet, force switch to it.
+                    if (mDevices.size() > 1) {
+                        for (int i = 0; i < mDevices.size(); i++) {
+                            BatteryDevice d = mDevices.get(i);
+                            
+                            // Reset alert flag if device charges back up (> 20%)
+                            if (d.level > 20) {
+                                mAlertedDevices.remove(d.name);
+                            }
+
+                            // Trigger override if: Critical AND Not Alerted
+                            if (d.level <= 15 && !mAlertedDevices.contains(d.name)) {
+                                mCurrentIndex = i;
+                                mCurrentDeviceName = d.name;
+                                mAlertedDevices.add(d.name);
+                                mLastInteractionTime = SystemClock.elapsedRealtime(); // Treat as interaction
+                                break; // Only override for one device at a time to prevent fighting
+                            }
+                        }
+                    }
+                    
+                    // Sync name just in case it changed via index logic above
+                    if (!mDevices.isEmpty()) {
+                        mCurrentDeviceName = mDevices.get(mCurrentIndex).name;
+                    }
+
                 } else {
-                    // Fix stuck UI: Explicit clear if system says disconnected
-                    mDeviceName = null;
-                    mBatteryLevel = -1;
-                    mIsAudio = false;
+                    // Fallback or empty
+                    mCurrentIndex = 0;
+                    mCurrentDeviceName = null;
                 }
                 mController.notifyListeners();
             }
@@ -59,9 +143,9 @@ public class QuickBatteryController {
         } else {
             unRegisterReceiver();
             // Clear data explicitly when disabled via toggle
-            mDeviceName = null;
-            mBatteryLevel = -1;
-            mIsAudio = false;
+            mDevices.clear();
+            mCurrentDeviceName = null;
+            mAlertedDevices.clear();
             mController.notifyListeners();
         }
     }
@@ -89,15 +173,64 @@ public class QuickBatteryController {
         mRegistered = false;
     }
 
+    private void clearData() {
+        if (mDevices.isEmpty()) return;
+        mDevices.clear();
+        mCurrentDeviceName = null;
+        mController.notifyListeners();
+    }
+
+    // --- Public API for QuickSpaceView ---
+
+    /**
+     * Cycles to the next device in the list.
+     * Called when the user taps the battery pill.
+     */
+    public void advanceIndex() {
+        if (mDevices.isEmpty()) return;
+        mCurrentIndex = (mCurrentIndex + 1) % mDevices.size();
+        mCurrentDeviceName = mDevices.get(mCurrentIndex).name;
+        mLastInteractionTime = SystemClock.elapsedRealtime(); // Reset timeout on manual interaction
+        // Note: We don't notifyListeners here because the View handles the animation 
+        // and calls update on itself.
+    }
+
+    public BatteryDevice getCurrentDevice() {
+        if (mDevices.isEmpty()) return null;
+        if (mCurrentIndex >= mDevices.size()) mCurrentIndex = 0;
+        return mDevices.get(mCurrentIndex);
+    }
+
+    public int getDeviceCount() {
+        return mDevices.size();
+    }
+
+    public int getCurrentIndex() {
+        return mCurrentIndex;
+    }
+
     public String getDeviceName() {
-        return mDeviceName;
+        BatteryDevice d = getCurrentDevice();
+        return d != null ? d.name : null;
     }
 
     public int getBatteryLevel() {
-        return mBatteryLevel;
+        BatteryDevice d = getCurrentDevice();
+        return d != null ? d.level : -1;
     }
 
     public boolean isAudioDevice() {
-        return mIsAudio;
+        BatteryDevice d = getCurrentDevice();
+        return d != null ? d.isAudio : false;
+    }
+
+    public void launchBatterySettings() {
+        try {
+            Intent intent = new Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            mContext.startActivity(intent);
+        } catch (Exception e) {
+            // Fallback
+        }
     }
 }
