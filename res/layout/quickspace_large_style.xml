@@ -130,10 +130,9 @@
     <FrameLayout
         android:id="@+id/battery_info_row"
         android:layout_width="0dp"
-        android:layout_height="36dp"
+        android:layout_height="48dp"
         android:layout_marginTop="12dp"
         android:layout_marginEnd="16dp"
-        android:layout_marginStart="16dp"
         android:visibility="gone"
         android:background="@drawable/bg_battery_pill"
         android:clipToOutline="true"
@@ -146,16 +145,15 @@
             android:id="@+id/battery_progress_bar"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:background="@drawable/bg_battery_progress"
-            android:alpha="0.7"/>
+            android:background="@drawable/bg_battery_progress"/>
 
         <!-- Content -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:gravity="center"
+            android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingStart="12dp"
+            android:paddingStart="16dp"
             android:paddingEnd="12dp">
 
             <ImageView
@@ -167,13 +165,31 @@
                 android:layout_marginEnd="8dp"/>
 
             <TextView
-                android:id="@+id/battery_text"
+                android:id="@+id/battery_device_name"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:textColor="?workspaceTextColor"
+                android:textSize="16sp"
+                android:fontFamily="sans-serif-medium"
+                android:ellipsize="end"
+                android:singleLine="true" />
+
+            <TextView
+                android:id="@+id/battery_percentage"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="?workspaceTextColor"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:singleLine="true"/>
+                android:textSize="16sp"
+                android:fontFamily="sans-serif-medium"
+                android:singleLine="true" />
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_battery_std"
+                android:tint="?workspaceTextColor"
+                android:layout_marginStart="4dp"/>
         </LinearLayout>
     </FrameLayout>
 

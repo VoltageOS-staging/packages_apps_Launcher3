@@ -72,7 +72,8 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     public ViewGroup mContextualInfoRow;
     public ViewGroup mBatteryRow;
     public View mBatteryProgress;
-    public TextView mBatteryText;
+    public TextView mBatteryDeviceName;
+    public TextView mBatteryPercentage;
     public ImageView mBatteryIcon;
 
     public TextView mEventTitleSubColored;
@@ -552,13 +553,19 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
         if (showBattery && mController.getBatteryController() != null) {
             String deviceName = mController.getBatteryController().getDeviceName();
             int level = mController.getBatteryController().getBatteryLevel();
+            boolean isAudio = mController.getBatteryController().isAudioDevice();
 
             if (deviceName != null && level >= 0) {
                 if (mBatteryRow.getVisibility() != View.VISIBLE) {
                     animateIn(mBatteryRow);
                 }
-                String battText = deviceName + " • " + level + "%";
-                updateTextViewIfNeeded(mBatteryText, battText, false);
+                updateTextViewIfNeeded(mBatteryDeviceName, deviceName, false);
+                String percentStr = level + "%";
+                updateTextViewIfNeeded(mBatteryPercentage, percentStr, false);
+
+                if (mBatteryIcon != null) {
+                    mBatteryIcon.setImageResource(isAudio ? R.drawable.ic_audio_device : R.drawable.ic_battery_std);
+                }
 
                 mBatteryRow.post(() -> {
                     if (mBatteryRow != null && mBatteryProgress != null && mBatteryRow.getWidth() > 0) {
@@ -635,7 +642,8 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
             mContextualInfoRow = findViewById(R.id.contextual_info_row);
             mBatteryRow = findViewById(R.id.battery_info_row);
             mBatteryProgress = findViewById(R.id.battery_progress_bar);
-            mBatteryText = findViewById(R.id.battery_text);
+            mBatteryDeviceName = findViewById(R.id.battery_device_name);
+            mBatteryPercentage = findViewById(R.id.battery_percentage);
             mBatteryIcon = findViewById(R.id.battery_icon);
 
         }
@@ -937,7 +945,8 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
         mLastActionTitle = "";
         mBatteryRow = null;
         mBatteryProgress = null;
-        mBatteryText = null;
+        mBatteryDeviceName = null;
+        mBatteryPercentage = null;
         mBatteryIcon = null;
     }
 

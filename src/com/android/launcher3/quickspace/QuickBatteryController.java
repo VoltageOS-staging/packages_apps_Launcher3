@@ -18,6 +18,7 @@ public class QuickBatteryController {
 
     private String mDeviceName = null;
     private int mBatteryLevel = -1;
+    private boolean mIsAudio = false;
 
     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
         @Override
@@ -25,6 +26,7 @@ public class QuickBatteryController {
             if (ACTION_BLUETOOTH_BATTERY_UPDATE.equals(intent.getAction())) {
                 mDeviceName = intent.getStringExtra("device_name");
                 mBatteryLevel = intent.getIntExtra("battery_level", -1);
+                mIsAudio = intent.getBooleanExtra("is_audio", false);
                 mController.notifyListeners();
             }
         }
@@ -70,6 +72,7 @@ public class QuickBatteryController {
         if (mDeviceName == null && mBatteryLevel == -1) return;
         mDeviceName = null;
         mBatteryLevel = -1;
+        mIsAudio = false;
         mController.notifyListeners();
     }
 
@@ -79,5 +82,9 @@ public class QuickBatteryController {
 
     public int getBatteryLevel() {
         return mBatteryLevel;
+    }
+
+    public boolean isAudioDevice() {
+        return mIsAudio;
     }
 }
