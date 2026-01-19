@@ -61,7 +61,8 @@ public class QuickspaceController implements OmniJawsClient.OmniJawsObserver,
     private final Context mContext;
     private final Map<String, Integer> mConditionMap;
     private QuickEventsController mEventsController;
-    
+    private QuickBatteryController mBatteryController;
+
     // Lazy initialization - only create when needed
     private OmniJawsClient mWeatherClient;
     private OmniJawsClient.WeatherInfo mWeatherInfo;
@@ -148,6 +149,7 @@ public class QuickspaceController implements OmniJawsClient.OmniJawsObserver,
         mContext = context.getApplicationContext();
         mConditionMap = initializeConditionMap();
         mEventsController = new QuickEventsController(context);
+        mBatteryController = new QuickBatteryController(context, this);
 
         mPsaRunnable = new Runnable() {
             @Override
@@ -259,6 +261,10 @@ private synchronized void initializeMediaIfNeeded() {
             startPsaScheduling();
         }
 
+        if (mBatteryController != null) {
+            mBatteryController.onResume();
+        }
+
         listener.onDataUpdated();
     }
     
@@ -346,6 +352,10 @@ private synchronized void initializeMediaIfNeeded() {
         // Reset initialization flags
         mWeatherInitialized = false;
         mMediaInitialized = false;
+
+        if (mBatteryController != null) {
+            mBatteryController.onPause();
+        }
     }
 
     public boolean isQuickEvent() {
@@ -354,6 +364,10 @@ private synchronized void initializeMediaIfNeeded() {
 
     public QuickEventsController getEventController() {
         return mEventsController;
+    }
+
+    public QuickBatteryController getBatteryController() {
+        return mBatteryController;
     }
 
     public boolean isWeatherAvailable() {
@@ -455,6 +469,7 @@ public String getWeatherTemp() {
     public void onResume() {
         mIsResuming = true;
         updateMediaController();
+        if (mBatteryController != null) mBatteryController.onResume();
         mIsResuming = false;
         notifyListeners();
     }
@@ -492,6 +507,7 @@ public String getWeatherTemp() {
         mWeatherInfo = null;
         mConditionImage = null;
         mEventsController = null;
+        mBatteryController = null;
         mCachedWeatherTemp = null;
 
         mWeatherCacheTime = 0;

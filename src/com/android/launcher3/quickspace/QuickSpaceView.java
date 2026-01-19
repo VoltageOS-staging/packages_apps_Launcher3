@@ -70,6 +70,10 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     public ViewGroup mNowPlayingContent;
     public TextView mNowPlayingText;
     public ViewGroup mContextualInfoRow;
+    public ViewGroup mBatteryRow;
+    public View mBatteryProgress;
+    public TextView mBatteryText;
+    public ImageView mBatteryIcon;
 
     public TextView mEventTitleSubColored;
     public TextView mGreetingsExt;
@@ -94,6 +98,7 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     private boolean mLastNowPlayingState = false;
     private String mLastPSAMessage = "";
     private String mLastActionTitle = "";
+    private int mLastBatteryLevel = -1;
 
     private ViewPropertyAnimator mCurrentAnimateIn;
     private ViewPropertyAnimator mCurrentAnimateOut;
@@ -213,14 +218,18 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
         int actionTitleHash = currentActionTitle != null ? currentActionTitle.hashCode() : 0;
 
 
+        int batteryLevel = mController.getBatteryController() != null ? mController.getBatteryController().getBatteryLevel() : -1;
+
         boolean changed = mLastEventTitleHash != eventTitleHash ||
                          mLastWeatherTempHash != weatherTempHash ||
-                         mLastActionTitleHash != actionTitleHash;
+                         mLastActionTitleHash != actionTitleHash ||
+                         mLastBatteryLevel != batteryLevel;
 
         if (changed) {
             mLastEventTitleHash = eventTitleHash;
             mLastWeatherTempHash = weatherTempHash;
             mLastActionTitleHash = actionTitleHash;
+            mLastBatteryLevel = batteryLevel;
             mLastUpdateTime = currentTime;
 
             mLastEventTitle = currentEventTitle != null ? currentEventTitle : "";
@@ -436,7 +445,7 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
             return;
         }
 
-        if (mQuickspaceDayOfWeek == null) return; // Views not inflated for this style
+        if (mQuickspaceDayOfWeek == null || mBatteryRow == null) return; // Views not inflated for this style
 
         if (mController == null || mController.getEventController() == null) {
             return;
@@ -539,6 +548,39 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
             }
         }
 
+        boolean showBattery = LauncherPrefs.SHOW_QUICKSPACE_BATTERY.get(getContext());
+        if (showBattery && mController.getBatteryController() != null) {
+            String deviceName = mController.getBatteryController().getDeviceName();
+            int level = mController.getBatteryController().getBatteryLevel();
+
+            if (deviceName != null && level >= 0) {
+                if (mBatteryRow.getVisibility() != View.VISIBLE) {
+                    animateIn(mBatteryRow);
+                }
+                String battText = deviceName + " • " + level + "%";
+                updateTextViewIfNeeded(mBatteryText, battText, false);
+
+                mBatteryRow.post(() -> {
+                    if (mBatteryRow != null && mBatteryProgress != null && mBatteryRow.getWidth() > 0) {
+                        int totalWidth = mBatteryRow.getWidth();
+                        int progressWidth = (int) ((totalWidth * level) / 100f);
+
+                        ViewGroup.LayoutParams lp = mBatteryProgress.getLayoutParams();
+                        if (lp.width != progressWidth) {
+                            lp.width = progressWidth;
+                            mBatteryProgress.setLayoutParams(lp);
+                        }
+                    }
+                });
+            } else {
+                animateOut(mBatteryRow);
+            }
+        } else {
+            if (mBatteryRow.getVisibility() != View.GONE) {
+                mBatteryRow.setVisibility(View.GONE);
+            }
+        }
+
         endBatchEdit();
     }
 
@@ -591,6 +633,11 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
             mNowPlayingContent = findViewById(R.id.now_playing_content);
             mNowPlayingText = findViewById(R.id.now_playing_text);
             mContextualInfoRow = findViewById(R.id.contextual_info_row);
+            mBatteryRow = findViewById(R.id.battery_info_row);
+            mBatteryProgress = findViewById(R.id.battery_progress_bar);
+            mBatteryText = findViewById(R.id.battery_text);
+            mBatteryIcon = findViewById(R.id.battery_icon);
+
         }
         boolean hasGoogleApp = isPackageEnabled("com.google.android.googlequicksearchbox", getContext());
         if (mWeatherContentSub != null) {
@@ -718,6 +765,7 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
         if (mEventTitleSubColored != null) mEventTitleSubColored.animate().cancel();
         if (mNowPlayingIcon != null) mNowPlayingIcon.animate().cancel();
         if (mWeatherContentSub != null) mWeatherContentSub.animate().cancel();
+        if (mBatteryRow != null) mBatteryRow.animate().cancel();
         if (mQuickspaceContent != null) mQuickspaceContent.animate().cancel();
     }
     
@@ -887,6 +935,10 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
         mLastEventTitle = "";
         mLastWeatherTemp = "";
         mLastActionTitle = "";
+        mBatteryRow = null;
+        mBatteryProgress = null;
+        mBatteryText = null;
+        mBatteryIcon = null;
     }
 
     public void setPadding(int n, int n2, int n3, int n4) {
