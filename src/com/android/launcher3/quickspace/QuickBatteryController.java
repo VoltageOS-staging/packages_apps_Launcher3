@@ -9,6 +9,7 @@ import com.android.launcher3.LauncherPrefs;
 
 public class QuickBatteryController {
 
+    // Must match the action string in SystemUI's BluetoothControllerImpl
     private static final String ACTION_BLUETOOTH_BATTERY_UPDATE =
             "com.android.systemui.action.BLUETOOTH_BATTERY_UPDATE";
 
@@ -24,9 +25,18 @@ public class QuickBatteryController {
         @Override
         public void onReceive(Context context, Intent intent) {
             if (ACTION_BLUETOOTH_BATTERY_UPDATE.equals(intent.getAction())) {
-                mDeviceName = intent.getStringExtra("device_name");
-                mBatteryLevel = intent.getIntExtra("battery_level", -1);
-                mIsAudio = intent.getBooleanExtra("is_audio", false);
+                boolean isConnected = intent.getBooleanExtra("is_connected", false);
+
+                if (isConnected) {
+                    mDeviceName = intent.getStringExtra("device_name");
+                    mBatteryLevel = intent.getIntExtra("battery_level", -1);
+                    mIsAudio = intent.getBooleanExtra("is_audio", false);
+                } else {
+                    // Fix stuck UI: Explicit clear if system says disconnected
+                    mDeviceName = null;
+                    mBatteryLevel = -1;
+                    mIsAudio = false;
+                }
                 mController.notifyListeners();
             }
         }
@@ -39,10 +49,20 @@ public class QuickBatteryController {
 
     public void onResume() {
         if (LauncherPrefs.SHOW_QUICKSPACE_BATTERY.get(mContext)) {
-            registerReceiver();
+            // registerReceiver returns the sticky intent if one exists (because of FWB patch)
+            Intent stickyIntent = registerReceiver();
+            if (stickyIntent != null) {
+                // Process the immediate state so the UI updates right away
+                // without waiting for a new broadcast event
+                mReceiver.onReceive(mContext, stickyIntent);
+            }
         } else {
             unRegisterReceiver();
-            clearData();
+            // Clear data explicitly when disabled via toggle
+            mDeviceName = null;
+            mBatteryLevel = -1;
+            mIsAudio = false;
+            mController.notifyListeners();
         }
     }
 
@@ -50,12 +70,13 @@ public class QuickBatteryController {
         unRegisterReceiver();
     }
 
-    private void registerReceiver() {
-        if (mRegistered) return;
+    private Intent registerReceiver() {
+        if (mRegistered) return null;
         IntentFilter filter = new IntentFilter();
         filter.addAction(ACTION_BLUETOOTH_BATTERY_UPDATE);
-        mContext.registerReceiver(mReceiver, filter, Context.RECEIVER_EXPORTED);
         mRegistered = true;
+        // RECEIVER_EXPORTED is required for dynamic receivers on newer Android versions
+        return mContext.registerReceiver(mReceiver, filter, Context.RECEIVER_EXPORTED);
     }
 
     private void unRegisterReceiver() {
@@ -66,14 +87,6 @@ public class QuickBatteryController {
             // ignore
         }
         mRegistered = false;
-    }
-
-    private void clearData() {
-        if (mDeviceName == null && mBatteryLevel == -1) return;
-        mDeviceName = null;
-        mBatteryLevel = -1;
-        mIsAudio = false;
-        mController.notifyListeners();
     }
 
     public String getDeviceName() {

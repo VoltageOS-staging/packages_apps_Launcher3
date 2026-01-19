@@ -227,10 +227,14 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
 
         int batteryLevel = mController.getBatteryController() != null ? mController.getBatteryController().getBatteryLevel() : -1;
 
+        boolean batteryVisible = batteryLevel >= 0;
+        boolean lastBatteryVisible = mLastBatteryLevel >= 0;
+
         boolean changed = mLastEventTitleHash != eventTitleHash ||
                          mLastWeatherTempHash != weatherTempHash ||
                          mLastActionTitleHash != actionTitleHash ||
-                         mLastBatteryLevel != batteryLevel;
+                         mLastBatteryLevel != batteryLevel ||
+                         batteryVisible != lastBatteryVisible;
 
         if (changed) {
             mLastEventTitleHash = eventTitleHash;
@@ -618,12 +622,21 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
         Drawable bg = mBatteryProgress.getBackground();
         if (bg instanceof GradientDrawable) {
             GradientDrawable gd = (GradientDrawable) bg;
-            int startColor = Color.argb(50, Color.red(color), Color.green(color), Color.blue(color)); // ~20% Opacity
-            int endColor = 0x00FFFFFF; // Transparent
+            int r = Color.red(color);
+            int g = Color.green(color);
+            int b = Color.blue(color);
+
+            int startColor = Color.argb(80, r, g, b); // ~30%
+            int midColor = Color.argb(25, r, g, b);   // ~10%
+            int endColor = 0x00FFFFFF;
 
             if (level < 20) {
-                startColor = color; // Solid start for low battery
+                startColor = Color.argb(200, r, g, b); // Mostly solid for critical
+                midColor = Color.argb(100, r, g, b);
             }
+
+            gd.setColors(new int[]{startColor, midColor, endColor});
+            gd.setOrientation(GradientDrawable.Orientation.LEFT_RIGHT);
 
             gd.setAlpha(level < 20 ? 255 : 46); // Full opacity if low, ~18% if healthy
         }
