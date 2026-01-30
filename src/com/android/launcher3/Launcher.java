@@ -16,6 +16,7 @@
 
 package com.android.launcher3;
 
+import android.view.Display;
 import static android.content.pm.ActivityInfo.CONFIG_UI_MODE;
 import static android.view.WindowInsetsAnimation.Callback.DISPATCH_MODE_CONTINUE_ON_SUBTREE;
 import static android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED;
@@ -265,6 +266,7 @@ import com.android.launcher3.widget.model.WidgetsListBaseEntry;
 import com.android.launcher3.widget.picker.WidgetsFullSheet;
 import com.android.launcher3.widget.picker.model.WidgetPickerDataProvider;
 import com.android.launcher3.widget.util.WidgetSizeHandler;
+import com.android.launcher3.pcmode.PcModeManager;
 import com.android.systemui.plugins.LauncherOverlayPlugin;
 import com.android.systemui.plugins.PluginListener;
 import com.android.systemui.plugins.shared.LauncherOverlayManager;
@@ -553,6 +555,21 @@ public class Launcher extends StatefulActivity<LauncherState>
                     RuleController.parseRules(this, R.xml.split_configuration));
         }
         mStartupLatencyLogger.logEnd(LAUNCHER_LATENCY_STARTUP_ACTIVITY_ON_CREATE);
+
+        // Initialize PC Mode Manager
+        Display display = getDisplay();
+        int displayId = (display != null) ? display.getDisplayId() : -1;
+        android.util.Log.d("LauncherPcMode", "Launcher.onCreate on display " + displayId);
+
+        if (displayId == Display.DEFAULT_DISPLAY) {
+            android.util.Log.d("LauncherPcMode", "Initializing PC Mode on primary display");
+            PcModeManager pcModeManager = PcModeManager.getInstance(this);
+            pcModeManager.init(this);
+            pcModeManager.checkVncState();
+        } else {
+            android.util.Log.d("LauncherPcMode", "Skipping PC Mode - not primary display");
+        }
+
         TestEventEmitter.sendEvent(TestEvent.LAUNCHER_ON_CREATE);
     }
 
@@ -1767,6 +1784,10 @@ public class Launcher extends StatefulActivity<LauncherState>
         getRootView().getViewTreeObserver().removeOnPreDrawListener(mOnInitialBindListener);
         mOverlayManager.onActivityDestroyed();
         PillColorProvider.getInstance(mWorkspace.getContext()).unregisterObserver();
+        
+        // Cleanup PC Mode Manager
+        PcModeManager.getInstance(this).cleanup();
+
 
         if (mQuickSpace != null) {
             mQuickSpace.prepareForDestroy();

@@ -15,6 +15,7 @@
  */
 package com.android.launcher3.uioverrides;
 
+import com.android.launcher3.pcmode.PcModeManager;
 import static android.app.ActivityTaskManager.INVALID_TASK_ID;
 import static android.os.Trace.TRACE_TAG_APP;
 import static android.view.Display.DEFAULT_DISPLAY;
@@ -896,6 +897,11 @@ public class QuickstepLauncher extends Launcher implements RecentsViewContainer,
         View.setTracedRequestLayoutClassClass(TRACE_RELAYOUT_CLASS);
         OverviewComponentObserver.INSTANCE.get(this)
                 .addOverviewChangeListener(mOverviewChangeListener);
+
+    PcModeManager pcModeManager = PcModeManager.getInstance(this);
+    pcModeManager.init(this);
+    pcModeManager.checkVncState();
+
     }
 
     @Override

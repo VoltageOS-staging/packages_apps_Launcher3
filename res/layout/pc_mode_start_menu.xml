@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Modern Start Menu (Windows 11 / macOS Launchpad style) -->
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/start_menu_card"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="24dp"
+    app:cardBackgroundColor="@color/start_menu_background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <!-- Search bar at top -->
+        <FrameLayout
+            android:id="@+id/start_search_bar"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="@drawable/start_search_background"
+            android:layout_marginBottom="20dp">
+
+            <EditText
+                android:id="@+id/start_search_input"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:hint="@string/search_apps_hint"
+                android:imeOptions="actionSearch"
+                android:inputType="text"
+                android:paddingStart="48dp"
+                android:paddingEnd="16dp"
+                android:background="@null"
+                android:textSize="15sp"
+                android:textColor="?android:attr/textColorPrimary"
+                android:textColorHint="?android:attr/textColorSecondary" />
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center_vertical|start"
+                android:layout_marginStart="16dp"
+                android:src="@drawable/ic_search"
+                android:tint="?android:attr/textColorSecondary" />
+
+        </FrameLayout>
+
+        <!-- Pinned Apps Section -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/pinned_apps"
+            android:textSize="13sp"
+            android:textColor="?android:attr/textColorSecondary"
+            android:fontFamily="sans-serif-medium"
+            android:layout_marginBottom="12dp"
+            android:alpha="0.7" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/pinned_apps_grid"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:paddingBottom="16dp" />
+
+        <!-- All Apps Button -->
+        <Button
+            android:id="@+id/all_apps_button"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="@string/all_apps_button"
+            android:textSize="14sp"
+            app:icon="@drawable/ic_apps_grid"
+            app:iconGravity="start"
+            app:iconPadding="12dp" />
+
+        <!-- User Profile / Power Options -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="12dp"
+            android:paddingTop="16dp"
+            android:background="@drawable/divider_top">
+
+            <ImageView
+                android:id="@+id/user_avatar"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@drawable/ic_user_avatar"
+                android:background="@drawable/circle_background"
+                android:padding="8dp" />
+
+            <TextView
+                android:id="@+id/user_name"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="12dp"
+                android:text="@string/user_name"
+                android:textSize="14sp"
+                android:textColor="?android:attr/textColorPrimary"
+                android:fontFamily="sans-serif-medium"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <ImageButton
+                android:id="@+id/power_button"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_power"
+                
+                android:tint="?android:attr/textColorSecondary"
+                android:contentDescription="@string/power_menu" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView>

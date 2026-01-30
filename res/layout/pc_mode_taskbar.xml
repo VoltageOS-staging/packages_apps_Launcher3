@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Modern PC Mode Taskbar -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/taskbar_container"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/pc_taskbar_height"
+    android:orientation="horizontal"
+    android:background="@drawable/taskbar_background"
+    android:elevation="8dp"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
+    android:gravity="center_vertical">
+
+    <!-- Start Button / App Launcher -->
+    <FrameLayout
+        android:id="@+id/start_button"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginEnd="8dp"
+        android:clickable="true"
+        android:focusable="true">
+
+        <ImageView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_apps_grid"
+            android:tint="?android:attr/textColorPrimary"
+            android:contentDescription="@string/all_apps_button_label" />
+
+    </FrameLayout>
+
+    <!-- Search Bar (centered like Windows 11) -->
+    <FrameLayout
+        android:id="@+id/taskbar_search"
+        android:layout_width="0dp"
+        android:layout_height="40dp"
+        android:layout_weight="1"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:background="@drawable/taskbar_search_background"
+        android:clickable="true"
+        android:focusable="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_search"
+                android:tint="?android:attr/textColorSecondary" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="@string/search_hint"
+                android:textColor="?android:attr/textColorSecondary"
+                android:textSize="14sp" />
+
+        </LinearLayout>
+
+    </FrameLayout>
+
+    <!-- Pinned Apps / Recent Tasks -->
+    <HorizontalScrollView
+        android:id="@+id/taskbar_apps"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="2"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/taskbar_apps_container"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp" />
+
+    </HorizontalScrollView>
+
+    <!-- System Tray -->
+    <LinearLayout
+        android:id="@+id/system_tray"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginStart="12dp">
+
+        <!-- Network Status -->
+        <ImageView
+            android:id="@+id/network_icon"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginEnd="12dp"
+            android:src="@drawable/ic_wifi"
+            android:tint="?android:attr/textColorPrimary" />
+
+        <!-- Battery Status -->
+        <ImageView
+            android:id="@+id/battery_icon"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginEnd="12dp"
+            android:src="@drawable/ic_battery"
+            android:tint="?android:attr/textColorPrimary" />
+
+        <!-- Clock -->
+        <TextClock
+            android:id="@+id/taskbar_clock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:format12Hour="h:mm a"
+            android:format24Hour="HH:mm"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="14sp"
+            android:fontFamily="sans-serif-medium"
+            android:layout_marginEnd="4dp" />
+
+        <!-- System Settings Button -->
+        <FrameLayout
+            android:id="@+id/system_settings_button"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_settings"
+                android:tint="?android:attr/textColorPrimary" />
+
+        </FrameLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

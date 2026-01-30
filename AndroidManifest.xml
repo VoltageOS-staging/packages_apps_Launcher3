@@ -43,6 +43,14 @@
         android:restoreAnyVersion="true"
         android:supportsRtl="true" >
 
+
+<receiver 
+    android:name=".pcmode.PcModeReceiver"
+    android:exported="true">
+    <intent-filter>
+        <action android:name="com.libremobileos.vncflinger.PC_MODE_STATE" />
+    </intent-filter>
+</receiver>
         <!--
         Main launcher activity. When extending only change the name, and keep all the
         attributes and intent filters the same

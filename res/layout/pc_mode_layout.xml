@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Modern PC Mode Layout for Launcher3 -->
+<com.android.launcher3.LauncherRootView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:launcher="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/pc_mode_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true">
+
+    <com.android.launcher3.dragndrop.DragLayer
+        android:id="@+id/pc_drag_layer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipChildren="false"
+        android:clipToPadding="false">
+
+        <!-- Desktop area for icons/widgets -->
+        <com.android.launcher3.Workspace
+            android:id="@+id/pc_desktop"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginBottom="@dimen/pc_taskbar_height"
+            android:padding="@dimen/pc_desktop_padding"
+            launcher:pageIndicator="@null" />
+
+        <!-- Modern Taskbar at bottom -->
+        <include
+            android:id="@+id/pc_taskbar"
+            layout="@layout/pc_mode_taskbar"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/pc_taskbar_height"
+            android:layout_gravity="bottom" />
+
+        <!-- Start Menu / App Launcher -->
+        <include
+            android:id="@+id/pc_start_menu"
+            layout="@layout/pc_mode_start_menu"
+            android:layout_width="@dimen/start_menu_width"
+            android:layout_height="@dimen/start_menu_height"
+            android:layout_gravity="bottom|start"
+            android:layout_marginBottom="@dimen/pc_taskbar_height"
+            android:visibility="gone" />
+
+        <!-- Quick Settings Panel -->
+        <include
+            android:id="@+id/pc_quick_settings"
+            layout="@layout/pc_mode_quick_settings"
+            android:layout_width="@dimen/quick_settings_width"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_marginBottom="@dimen/pc_taskbar_height"
+            android:visibility="gone" />
+
+    </com.android.launcher3.dragndrop.DragLayer>
+
+</com.android.launcher3.LauncherRootView>

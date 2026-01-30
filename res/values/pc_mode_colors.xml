@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- PC Mode Theme Colors -->
+    
+    <!-- Taskbar colors with blur/acrylic effect -->
+    <color name="taskbar_background">#E6FFFFFF</color> <!-- Light mode: semi-transparent white -->
+    <color name="taskbar_background_dark">#E6000000</color> <!-- Dark mode: semi-transparent black -->
+    
+    <!-- Start Menu colors -->
+    <color name="start_menu_background">#F5FFFFFF</color>
+    <color name="start_menu_background_dark">#F5121212</color>
+    
+    <!-- Quick Settings colors -->
+    <color name="quick_settings_background">#F5FFFFFF</color>
+    <color name="quick_settings_background_dark">#F5121212</color>
+    
+    <!-- Search bar colors -->
+    <color name="search_background">#14000000</color> <!-- 8% black -->
+    <color name="search_background_dark">#14FFFFFF</color> <!-- 8% white -->
+    
+    <!-- Toggle tile colors -->
+    <color name="toggle_tile_inactive">#1A000000</color> <!-- 10% black -->
+    <color name="toggle_tile_active">#3D5AFE</color> <!-- Material blue -->
+    
+    <!-- Accent colors -->
+    <color name="pc_mode_accent">#3D5AFE</color>
+    <color name="pc_mode_accent_variant">#5C7CFA</color>
+    
+    <!-- System colors -->
+    <color name="system_tray_icon">#FF000000</color>
+    <color name="system_tray_icon_dark">#FFFFFFFF</color>
+    
+</resources>

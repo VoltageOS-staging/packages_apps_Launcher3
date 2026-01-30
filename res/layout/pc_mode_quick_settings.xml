@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Quick Settings Panel (like Windows 11 Action Center) -->
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="24dp"
+    app:cardBackgroundColor="@color/quick_settings_background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <!-- Header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/quick_settings"
+                android:textSize="18sp"
+                android:textColor="?android:attr/textColorPrimary"
+                android:fontFamily="sans-serif-medium" />
+
+            <ImageButton
+                android:id="@+id/full_settings_button"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_settings"
+                
+                android:tint="?android:attr/textColorPrimary"
+                android:contentDescription="@string/settings" />
+
+        </LinearLayout>
+
+        <!-- Quick Toggle Buttons Grid -->
+        <GridLayout
+            android:id="@+id/quick_toggles_grid"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="3"
+            android:rowCount="2"
+            android:layout_marginBottom="20dp">
+
+            <!-- WiFi Toggle -->
+            <include layout="@layout/quick_toggle_tile"
+                android:id="@+id/wifi_toggle" />
+
+            <!-- Bluetooth Toggle -->
+            <include layout="@layout/quick_toggle_tile"
+                android:id="@+id/bluetooth_toggle" />
+
+            <!-- Brightness Toggle -->
+            <include layout="@layout/quick_toggle_tile"
+                android:id="@+id/brightness_toggle" />
+
+            <!-- Volume Toggle -->
+            <include layout="@layout/quick_toggle_tile"
+                android:id="@+id/volume_toggle" />
+
+            <!-- Battery Saver -->
+            <include layout="@layout/quick_toggle_tile"
+                android:id="@+id/battery_saver_toggle" />
+
+            <!-- More Settings -->
+            <include layout="@layout/quick_toggle_tile"
+                android:id="@+id/more_settings_toggle" />
+
+        </GridLayout>
+
+        <!-- Brightness Slider -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_brightness"
+                android:tint="?android:attr/textColorSecondary"
+                android:layout_marginEnd="12dp" />
+
+            <SeekBar
+                android:id="@+id/brightness_slider"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:max="100"
+                android:progress="50" />
+
+        </LinearLayout>
+
+        <!-- Volume Slider -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_volume"
+                android:tint="?android:attr/textColorSecondary"
+                android:layout_marginEnd="12dp" />
+
+            <SeekBar
+                android:id="@+id/volume_slider"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:max="100"
+                android:progress="70" />
+
+        </LinearLayout>
+
+        <!-- Desktop Mode Status -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="20dp"
+            android:paddingTop="16dp"
+            android:background="@drawable/divider_top">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_desktop"
+                android:tint="?android:attr/colorAccent"
+                android:layout_marginEnd="12dp" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/desktop_mode_active"
+                    android:textSize="14sp"
+                    android:textColor="?android:attr/textColorPrimary"
+                    android:fontFamily="sans-serif-medium" />
+
+                <TextView
+                    android:id="@+id/desktop_mode_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/connected_via_vnc"
+                    android:textSize="12sp"
+                    android:textColor="?android:attr/textColorSecondary" />
+
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/disconnect_button"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/disconnect"
+                android:textSize="13sp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView>
