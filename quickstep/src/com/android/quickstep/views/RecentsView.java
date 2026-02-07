@@ -2842,6 +2842,7 @@ public abstract class RecentsView<
             mAddDesktopButton.setGestureAlpha(1f);
         }
         setKeyboardFocusTask(KeyboardFocusTask.Unfocused.INSTANCE);
+        mTouchDownToStartHome = false;
 
         if (enableRefactorTaskThumbnail()) {
             // TODO(b/353917593): RecentsView is never destroyed, so its dependencies need to

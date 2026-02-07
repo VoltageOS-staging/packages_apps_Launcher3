@@ -756,6 +756,7 @@ constructor(
     override fun onRecycle() {
         isBeingDraggedForDismissal = false
         isBeingDismissed = false
+        isClickableAsLiveTile = true
         resetPersistentViewTransforms()
 
         groupTask = null
