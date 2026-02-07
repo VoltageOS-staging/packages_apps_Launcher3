@@ -111,25 +111,26 @@ public class SettingsAppDrawer extends CollapsingToolbarBaseActivity
         LauncherPrefs.getPrefs(this).unregisterOnSharedPreferenceChangeListener(this);
     }
 
-    @Override
-    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
-        if (LauncherPrefs.DRAWER_SEARCH.getSharedPrefKey().equals(key) ||
-                LauncherPrefs.DRAWER_SCROLLBAR.getSharedPrefKey().equals(key) ||
-                LauncherPrefs.ALL_APPS_DARK_TEXT.getSharedPrefKey().equals(key) ||
-            LauncherAppState.INSTANCE.executeIfCreated(app -> app.setNeedsRestart());
-        }
-            if (LauncherPrefs.DRAWER_LIST.getSharedPrefKey().equals(key)) {
-                // Trigger a refresh of the app list without requiring a restart
-                // This will cause onAppsUpdated() to be called, which will recategorize apps
-                try {
-                    LauncherAppState appState = LauncherAppState.getInstance(getContext());
-                    appState.getModel().rebindCallbacks();
-                } catch (Exception e) {
-                    // Fallback to restart if rebind fails
-                    LauncherAppState.INSTANCE.get(getContext()).setNeedsRestart();
-                }
-            }
+@Override
+public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+    if (LauncherPrefs.DRAWER_SEARCH.getSharedPrefKey().equals(key) ||
+        LauncherPrefs.DRAWER_SCROLLBAR.getSharedPrefKey().equals(key) ||
+        LauncherPrefs.ALL_APPS_DARK_TEXT.getSharedPrefKey().equals(key)) {
+        LauncherAppState.INSTANCE.executeIfCreated(app -> app.setNeedsRestart());
     }
+    
+    if (LauncherPrefs.DRAWER_LIST.getSharedPrefKey().equals(key)) {
+        // Trigger a refresh of the app list without requiring a restart
+        // This will cause onAppsUpdated() to be called, which will recategorize apps
+        try {
+            LauncherAppState appState = LauncherAppState.getInstance(getContext());
+            appState.getModel().rebindCallbacks();
+        } catch (Exception e) {
+            // Fallback to restart if rebind fails
+            LauncherAppState.INSTANCE.get(getContext()).setNeedsRestart();
+        }
+    }
+}
 
     private boolean startPreference(String fragment, Bundle args, String key) {
         if (getSupportFragmentManager().isStateSaved()) {
