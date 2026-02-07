@@ -306,6 +306,8 @@ constructor(@ApplicationContext private val encryptedContext: Context) {
         @JvmField val SINGLE_PAGE_CENTER = backedUpItem("pref_single_page_center", false)
         @JvmField val SLEEP_GESTURE = backedUpItem("pref_sleep_gesture", true)
         @JvmField val SLEEP_GESTURE_HAPTIC = backedUpItem("pref_sleep_gesture_haptic", true)
+        @JvmField val WALLPAPER_CAROUSEL = backedUpItem("pref_wallpaper_carousel", true)
+        @JvmField val WALLPAPER_CAROUSEL_LOCKSCREEN = backedUpItem("pref_wallpaper_carousel_lockscreen", true)
         @JvmField val WALLPAPER_SCROLLING = backedUpItem("pref_allow_wallpaper_scrolling", true)
         @JvmField
         val WORKSPACE_SIZE =
