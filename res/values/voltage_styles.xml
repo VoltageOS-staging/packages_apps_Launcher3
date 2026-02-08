@@ -24,4 +24,13 @@
     <style name="QuickSpaceSubText">
         <item name="android:fontFamily">@*android:string/config_bodyFontFamily</item>
     </style>
+
+    <style name="BaseIcon.AllApps.Folder" parent="BaseIcon.AllApps">
+        <item name="android:textColor">@color/materialColorOnSurface</item>
+        <item name="android:fontFamily">variable-title-small</item>
+        <item name="android:includeFontPadding">false</item>
+        <!-- Subtle elevation for depth -->
+        <item name="android:elevation">1dp</item>
+    </style>
+
 </resources>

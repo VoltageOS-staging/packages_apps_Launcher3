@@ -145,7 +145,8 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
   public QuickSpaceView(Context context, AttributeSet set) {
     super(context, set);
     mController = QuickspaceController.getInstance(context);
-    refreshColorStateList();
+    // Initialize color state list
+    mColorStateList = ColorStateList.valueOf(Themes.getAttrColor(getContext(), R.attr.workspaceTextColor));
     mQuickspaceBackgroundRes = R.drawable.bg_quickspace;
     setClipChildren(false);
   }
@@ -184,7 +185,8 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
                 requestLayout();
               }
             });
-        refreshColorStateList();
+        
+        // Force refresh colors on update to handle wallpaper changes
         updateColorForViews();
       }
     }
@@ -600,6 +602,7 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
       if (level >= 0) {
         updateBatteryPillContent();
 
+        // Ensure full opacity (fixes dimming bugs on restart)
         mBatteryRow.setAlpha(1f);
 
         if (mBatteryRow.getVisibility() != View.VISIBLE) {
@@ -658,17 +661,32 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     endBatchEdit();
   }
 
-  private void refreshColorStateList() {
-      mColorStateList = ColorStateList.valueOf(Themes.getAttrColor(getContext(), R.attr.workspaceTextColor));
+  // --- Dynamic Color & Styling Logic ---
+
+  private ColorStateList getCurrentColorStateList() {
+      // Check if the workspace expects dark text (Light Wallpaper)
+      boolean isDarkText = Themes.getAttrBoolean(getContext(), R.attr.isWorkspaceDarkText);
+      
+      // Use Black if dark text requested, otherwise fallback to Theme attribute (White/Light)
+      int color = isDarkText ? Color.BLACK : Themes.getAttrColor(getContext(), R.attr.workspaceTextColor);
+      
+      return ColorStateList.valueOf(color);
   }
 
   private void updateColorForViews() {
+      mColorStateList = getCurrentColorStateList();
+      
       if (mEventTitle != null) mEventTitle.setTextColor(mColorStateList);
       if (mQuickspaceDayOfWeek != null) mQuickspaceDayOfWeek.setTextColor(mColorStateList);
       if (mQuickspaceDate != null) mQuickspaceDate.setTextColor(mColorStateList);
       if (mBatteryDeviceName != null) mBatteryDeviceName.setTextColor(mColorStateList);
       if (mBatteryIcon != null) mBatteryIcon.setImageTintList(mColorStateList);
       if (mBatteryChargingOverlay != null) mBatteryChargingOverlay.setImageTintList(mColorStateList);
+      
+      // Update other views if necessary
+      if (mNowPlayingText != null) mNowPlayingText.setTextColor(mColorStateList);
+      if (mNowPlayingIcon != null) mNowPlayingIcon.setImageTintList(mColorStateList);
+      if (mPSAMessage != null) mPSAMessage.setTextColor(mColorStateList);
   }
 
   private void updateBatteryPillContent() {
@@ -677,7 +695,6 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
 
     String currentAddress = batController.getCurrentDeviceAddress();
 
-    refreshColorStateList();
     updateColorForViews();
 
     boolean deviceChanged = mLastDeviceAddress != null && !TextUtils.equals(currentAddress, mLastDeviceAddress);
@@ -873,6 +890,9 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     int progressColor;
     int textColor;
     int backplateColor;
+    
+    // Check if we are on a light wallpaper (Dark Text required)
+    boolean isDarkText = Themes.getAttrBoolean(getContext(), R.attr.isWorkspaceDarkText);
 
     if (level <= 20) {
       if (level <= 10) {
@@ -885,12 +905,16 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
       mBatteryPercentage.setTypeface(Typeface.DEFAULT_BOLD);
     } else {
       progressColor = Themes.getAttrColor(getContext(), R.attr.workspaceAccentColor);
-      backplateColor = 0x4D000000;
+      
+      // Dynamic Backplate: Smoked Glass (Black) for Light Wallpaper, Frosted (White) for Dark
+      backplateColor = isDarkText ? 0x1A000000 : 0x4D000000;
+      
+      ColorStateList current = mColorStateList;
 
       if (level >= 90 && !isCharging) {
-        textColor = mColorStateList.withAlpha(150).getDefaultColor();
+        textColor = current.withAlpha(150).getDefaultColor();
       } else {
-        textColor = mColorStateList.getDefaultColor();
+        textColor = current.getDefaultColor();
       }
       mBatteryPercentage.setTypeface(isCharging ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
     }
@@ -906,13 +930,30 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
       int g = Color.green(progressColor);
       int b = Color.blue(progressColor);
 
-      int startColor = Color.argb(80, r, g, b);
-      int midColor = Color.argb(25, r, g, b);
-      int endColor = 0x00FFFFFF;
+      // Gradient logic
+      int startColor, midColor, endColor = 0x00FFFFFF;
 
       if (level < 20) {
         startColor = Color.argb(200, r, g, b);
         midColor = Color.argb(100, r, g, b);
+      } else {
+          // Adaptive Pill Gradient
+          if (isDarkText) {
+              // Light Wallpaper -> Smoked Glass (Black Gradient)
+              startColor = 0x40000000;
+              midColor = 0x10000000;
+          } else {
+              // Dark Wallpaper -> Frosted Glass (White Gradient)
+              startColor = 0x26FFFFFF;
+              midColor = 0x10FFFFFF;
+          }
+          
+          // Adaptive Stroke
+          if (mBatteryRow != null && mBatteryRow.getBackground() instanceof GradientDrawable) {
+              GradientDrawable rowBg = (GradientDrawable) mBatteryRow.getBackground();
+              int strokeColor = isDarkText ? 0x1A000000 : 0x26FFFFFF;
+              rowBg.setStroke(dpToPx(1), strokeColor);
+          }
       }
 
       gd.setColors(new int[] {startColor, midColor, endColor});
