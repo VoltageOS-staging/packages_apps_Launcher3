@@ -123,11 +123,11 @@ public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, Strin
         // Trigger a refresh of the app list without requiring a restart
         // This will cause onAppsUpdated() to be called, which will recategorize apps
         try {
-            LauncherAppState appState = LauncherAppState.getInstance(getContext());
+            LauncherAppState appState = LauncherAppState.getInstance(this);
             appState.getModel().rebindCallbacks();
         } catch (Exception e) {
             // Fallback to restart if rebind fails
-            LauncherAppState.INSTANCE.get(getContext()).setNeedsRestart();
+            LauncherAppState.INSTANCE.get(this).setNeedsRestart();
         }
     }
 }

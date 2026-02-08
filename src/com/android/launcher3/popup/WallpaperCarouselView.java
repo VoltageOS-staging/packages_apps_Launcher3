@@ -9,11 +9,12 @@ import android.content.res.Resources;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.BitmapDrawable;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
-import android.graphics.drawable.Drawable;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -35,6 +36,8 @@ import com.android.launcher3.wallpaper.Wallpaper;
 import com.android.launcher3.wallpaper.WallpaperDatabase;
 
 import java.io.File;
+import java.security.MessageDigest;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Set;
 import java.util.HashSet;
@@ -47,6 +50,7 @@ public class WallpaperCarouselView extends LinearLayout {
     private int currentItemIndex = 0;
     private final IconFrame iconFrame;
     private Wallpaper currentWallpaper;
+    private final Set<String> wallpaperHashes = new HashSet<>();
 
     public WallpaperCarouselView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -63,39 +67,54 @@ public class WallpaperCarouselView extends LinearLayout {
 
     private void fetchWallpapers() {
         if (!LauncherPrefs.WALLPAPER_CAROUSEL.get(getContext())) {
-            loadingView.setVisibility(GONE);
-            setVisibility(GONE);
+            MAIN_EXECUTOR.execute(() -> {
+                loadingView.setVisibility(GONE);
+                setVisibility(GONE);
+                ViewGroup parent = (ViewGroup) getParent();
+                if (parent != null) {
+                    parent.requestLayout();
+                }
+            });
             return;
         }
 
         UI_HELPER_EXECUTOR.execute(() -> {
             try {
+                wallpaperHashes.clear();
+                
                 List<Wallpaper> wallpapers = WallpaperDatabase.INSTANCE.get(getContext()).getTopWallpapers();
 
                 List<Wallpaper> partnerWallpapers = queryPartnerWallpapers();
                 wallpapers.addAll(partnerWallpapers);
 
-                // Deduplicate wallpapers by imagePath
-                Set<String> seenImagePaths = new HashSet<>();
                 List<Wallpaper> uniqueWallpapers = new ArrayList<>();
 
-                // Ensure currentWallpaper is included at the start
-                if (currentWallpaper != null && currentWallpaper.getImagePath() != null) {
-                    seenImagePaths.add(currentWallpaper.getImagePath());
-                    uniqueWallpapers.add(currentWallpaper); // Add the current wallpaper first
+                if (currentWallpaper != null) {
+                    String hash = calculateWallpaperHash(currentWallpaper);
+                    if (hash != null) {
+                        wallpaperHashes.add(hash);
+                        uniqueWallpapers.add(currentWallpaper);
+                    }
                 }
 
                 for (Wallpaper wallpaper : wallpapers) {
-                    if (!seenImagePaths.contains(wallpaper.getImagePath())) {
-                        seenImagePaths.add(wallpaper.getImagePath());
+                    String hash = calculateWallpaperHash(wallpaper);
+                    if (hash != null && !wallpaperHashes.contains(hash)) {
+                        wallpaperHashes.add(hash);
                         uniqueWallpapers.add(wallpaper);
                     }
                 }
 
                 MAIN_EXECUTOR.execute(() -> {
                     loadingView.setVisibility(GONE);
-                    setVisibility(uniqueWallpapers.isEmpty() ? GONE : VISIBLE);
-                    if (!uniqueWallpapers.isEmpty()) {
+                    if (uniqueWallpapers.isEmpty()) {
+                        setVisibility(GONE);
+                        ViewGroup parent = (ViewGroup) getParent();
+                        if (parent != null) {
+                            parent.requestLayout();
+                        }
+                    } else {
+                        setVisibility(VISIBLE);
                         displayWallpapers(uniqueWallpapers);
                     }
                 });
@@ -104,6 +123,10 @@ public class WallpaperCarouselView extends LinearLayout {
                 MAIN_EXECUTOR.execute(() -> {
                     loadingView.setVisibility(GONE);
                     setVisibility(GONE);
+                    ViewGroup parent = (ViewGroup) getParent();
+                    if (parent != null) {
+                        parent.requestLayout();
+                    }
                 });
             }
         });
@@ -112,36 +135,28 @@ public class WallpaperCarouselView extends LinearLayout {
     private void displayWallpapers(List<Wallpaper> wallpapers) {
         if (!LauncherPrefs.WALLPAPER_CAROUSEL.get(getContext())) {
             setVisibility(GONE);
+            ViewGroup parent = (ViewGroup) getParent();
+            if (parent != null) {
+                parent.requestLayout();
+            }
             return;
         }
 
-        // Remove the ProgressBar if it exists
         if (getChildAt(0) instanceof ProgressBar) {
             removeViewAt(0);
         }
 
-        // Filter out duplicates before refreshing the view
-        List<Wallpaper> displayedWallpapers = new ArrayList<>();
-        Set<String> seenImagePaths = new HashSet<>();
-        for (Wallpaper wallpaper : wallpapers) {
-            if (wallpaper != null && wallpaper.getImagePath() != null && !seenImagePaths.contains(wallpaper.getImagePath())) {
-                seenImagePaths.add(wallpaper.getImagePath());
-                displayedWallpapers.add(wallpaper);
-            }
-        }
-
-        // Update only if the wallpaper list has changed
-        if (isWallpaperListChanged(displayedWallpapers)) {
+        if (isWallpaperListChanged(wallpapers)) {
             removeAllViews();
 
             int totalWidth = getWidth() > 0 ? getWidth() : (int) (deviceProfile.getDeviceProperties().getWidthPx() * 0.8);
             double firstItemWidth = totalWidth * 0.45;
             double remainingWidth = totalWidth - firstItemWidth;
             double marginBetweenItems = totalWidth * 0.02;
-            double itemWidth = (remainingWidth - (marginBetweenItems * (displayedWallpapers.size() - 1))) / (displayedWallpapers.size() - 1);
+            double itemWidth = (remainingWidth - (marginBetweenItems * (wallpapers.size() - 1))) / (wallpapers.size() - 1);
 
-            for (int index = 0; index < displayedWallpapers.size(); index++) {
-                Wallpaper wallpaper = displayedWallpapers.get(index);
+            for (int index = 0; index < wallpapers.size(); index++) {
+                Wallpaper wallpaper = wallpapers.get(index);
                 if (isWallpaperInvalid(wallpaper)) continue;
                 CardView cardView = createWallpaperCard(wallpaper, index, firstItemWidth, itemWidth, marginBetweenItems);
                 addView(cardView);
@@ -151,11 +166,10 @@ public class WallpaperCarouselView extends LinearLayout {
     }
 
     private boolean isWallpaperListChanged(List<Wallpaper> wallpapers) {
-        int cardViewIndex = 0; // Track index in the wallpaper list
+        int cardViewIndex = 0;
         for (int i = 0; i < getChildCount(); i++) {
             View child = getChildAt(i);
 
-            // Skip non-CardView children, like ProgressBar
             if (!(child instanceof CardView)) {
                 continue;
             }
@@ -163,7 +177,6 @@ public class WallpaperCarouselView extends LinearLayout {
             CardView existingCard = (CardView) child;
             Wallpaper existingWallpaper = (Wallpaper) existingCard.getTag();
 
-            // Handle index mismatch or null cases
             if (cardViewIndex >= wallpapers.size() || existingWallpaper == null) {
                 return true;
             }
@@ -176,7 +189,6 @@ public class WallpaperCarouselView extends LinearLayout {
             cardViewIndex++;
         }
 
-        // Check if all wallpapers are accounted for
         return cardViewIndex != wallpapers.size();
     }
 
@@ -187,7 +199,7 @@ public class WallpaperCarouselView extends LinearLayout {
     private CardView createWallpaperCard(Wallpaper wallpaper, int index, double firstItemWidth, double itemWidth, double marginBetweenItems) {
         CardView cardView = new CardView(getContext());
         cardView.setRadius(Themes.getDialogCornerRadius(getContext()) / 2);
-        cardView.setCardElevation(0); // Removed shadow by setting elevation to 0
+        cardView.setCardElevation(0);
 
         LayoutParams layoutParams = new LayoutParams(
                 index == currentItemIndex ? (int) firstItemWidth : (int) itemWidth,
@@ -196,7 +208,6 @@ public class WallpaperCarouselView extends LinearLayout {
         layoutParams.setMargins(index > 0 ? (int) marginBetweenItems : 0, 0, 0, 0);
         cardView.setLayoutParams(layoutParams);
 
-        // Assign the wallpaper as the tag for comparison later
         cardView.setTag(wallpaper);
 
         cardView.setOnClickListener(v -> {
@@ -218,7 +229,7 @@ public class WallpaperCarouselView extends LinearLayout {
         UI_HELPER_EXECUTOR.execute(() -> {
             try {
                 String imagePath = wallpaper.getImagePath();
-
+                
                 if (imagePath.startsWith("partner://")) {
                     Drawable drawable = loadPartnerWallpaperDrawable(imagePath);
                     if (drawable != null) {
@@ -230,11 +241,11 @@ public class WallpaperCarouselView extends LinearLayout {
                     }
                     return;
                 }
-
+                
                 File imageFile = new File(imagePath);
                 if (imageFile.exists() && imageFile.canRead()) {
                     BitmapFactory.Options options = new BitmapFactory.Options();
-                    options.inSampleSize = 2; // Scale down bitmap to reduce memory usage
+                    options.inSampleSize = 2;
                     Bitmap bitmap = BitmapFactory.decodeFile(imagePath, options);
                     if (bitmap != null) {
                         post(() -> {
@@ -252,7 +263,6 @@ public class WallpaperCarouselView extends LinearLayout {
 
     private void setWallpaper(Wallpaper wallpaper) {
         if (wallpaper.equals(currentWallpaper)) {
-            // If the wallpaper is already the current one, just refresh the view
             fetchWallpapers();
             return;
         }
@@ -270,7 +280,7 @@ public class WallpaperCarouselView extends LinearLayout {
         UI_HELPER_EXECUTOR.execute(() -> {
             try {
                 WallpaperManager wallpaperManager = WallpaperManager.getInstance(getContext());
-
+                
                 if (wallpaper.getImagePath().startsWith("partner://")) {
                     Drawable drawable = loadPartnerWallpaperDrawable(wallpaper.getImagePath());
                     if (drawable != null) {
@@ -280,26 +290,31 @@ public class WallpaperCarouselView extends LinearLayout {
                         android.graphics.Canvas canvas = new android.graphics.Canvas(bitmap);
                         drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
                         drawable.draw(canvas);
+                        
                         wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_SYSTEM);
                         wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_LOCK);
                         bitmap.recycle();
+                        
+                        currentWallpaper = wallpaper;
+                        
+                        MAIN_EXECUTOR.execute(() -> {
+                            currentCardView.removeView(loadingSpinner);
+                            addIconFrameToCard(currentCardView);
+                        });
                     }
                     return;
                 }
-
+                
                 Bitmap bitmap = BitmapFactory.decodeFile(wallpaper.getImagePath());
                 if (bitmap != null) {
                     wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_SYSTEM);
                     wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_LOCK);
 
-                    // Update the database with the new wallpaper
                     wallpaper.setTimestamp(System.currentTimeMillis());
                     WallpaperDatabase.INSTANCE.get(getContext()).insertOrUpdate(wallpaper);
 
-                    // Update the current wallpaper
                     currentWallpaper = wallpaper;
 
-                    // Refresh the carousel with the updated database state
                     fetchWallpapers();
 
                     MAIN_EXECUTOR.execute(() -> {
@@ -329,6 +344,11 @@ public class WallpaperCarouselView extends LinearLayout {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        if (!LauncherPrefs.WALLPAPER_CAROUSEL.get(getContext()) || getVisibility() == GONE || getChildCount() == 0) {
+            setMeasuredDimension(0, 0);
+            return;
+        }
+        
         int adjustedWidth = (int) (deviceProfile.getDeviceProperties().getWidthPx() * 0.8);
         int width = MeasureSpec.makeMeasureSpec(adjustedWidth, MeasureSpec.EXACTLY);
         super.onMeasure(width, heightMeasureSpec);
@@ -357,10 +377,9 @@ public class WallpaperCarouselView extends LinearLayout {
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         UI_HELPER_EXECUTOR.execute(() -> {
-            // Perform background cleanup
             currentWallpaper = null;
+            wallpaperHashes.clear();
 
-            // Schedule UI updates on the main thread using MAIN_EXECUTOR
             MAIN_EXECUTOR.execute(() -> {
                 iconFrame.setImageBitmap(null);
                 removeAllViews();
@@ -375,32 +394,33 @@ public class WallpaperCarouselView extends LinearLayout {
     private List<Wallpaper> queryPartnerWallpapers() {
         List<Wallpaper> wallpapers = new ArrayList<>();
         PackageManager pm = getContext().getPackageManager();
-
+        
         Intent intent = new Intent("com.android.launcher3.action.PARTNER_CUSTOMIZATION");
         List<ResolveInfo> providers = pm.queryBroadcastReceivers(intent, 0);
-
+        
         for (ResolveInfo provider : providers) {
             try {
                 String packageName = provider.activityInfo.packageName;
                 Log.d(TAG, "Found partner wallpaper provider: " + packageName);
-
+                
                 Resources partnerRes = pm.getResourcesForApplication(packageName);
-
+                
                 int arrayId = partnerRes.getIdentifier("partner_wallpapers", "array", packageName);
                 if (arrayId == 0) {
                     Log.w(TAG, "No partner_wallpapers array found in " + packageName);
                     continue;
                 }
-
+                
                 String[] wallpaperNames = partnerRes.getStringArray(arrayId);
                 Log.d(TAG, "Found " + wallpaperNames.length + " wallpapers in " + packageName);
-
+                
                 for (int i = 0; i < wallpaperNames.length; i++) {
                     String wallpaperName = wallpaperNames[i];
-
+                    
                     String imagePath = "partner://" + packageName + "/" + wallpaperName;
-
+                    
                     long timestamp = System.currentTimeMillis() - (i * 1000);
+                    
                     Wallpaper wallpaper = new Wallpaper(0, imagePath, i, timestamp);
                     wallpapers.add(wallpaper);
                 }
@@ -408,7 +428,7 @@ public class WallpaperCarouselView extends LinearLayout {
                 Log.e(TAG, "Error loading partner wallpapers from " + provider.activityInfo.packageName, e);
             }
         }
-
+        
         Log.d(TAG, "Loaded " + wallpapers.size() + " partner wallpapers");
         return wallpapers;
     }
@@ -419,11 +439,96 @@ public class WallpaperCarouselView extends LinearLayout {
     private Drawable loadPartnerWallpaperDrawable(String partnerPath) {
         try {
             String[] parts = partnerPath.replace("partner://", "").split("/", 2);
-            Resources partnerRes = getContext().getPackageManager().getResourcesForApplication(parts[0]);
-            int drawableId = partnerRes.getIdentifier(parts[1], "drawable", parts[0]);
+            if (parts.length != 2) {
+                Log.e(TAG, "Invalid partner path format: " + partnerPath);
+                return null;
+            }
+            
+            String packageName = parts[0];
+            String resourceName = parts[1];
+            
+            Resources partnerRes = getContext().getPackageManager().getResourcesForApplication(packageName);
+            int drawableId = partnerRes.getIdentifier(resourceName, "drawable", packageName);
+            
+            if (drawableId == 0) {
+                Log.e(TAG, "Could not find drawable: " + resourceName);
+                return null;
+            }
+            
             return partnerRes.getDrawable(drawableId, null);
         } catch (Exception e) {
             Log.e(TAG, "Error loading partner wallpaper drawable: " + partnerPath, e);
+            return null;
+        }
+    }
+
+    /**
+     * Calculate a hash for the wallpaper to detect duplicates based on image content
+     * Returns null if the wallpaper cannot be loaded or hashed
+     */
+    private String calculateWallpaperHash(Wallpaper wallpaper) {
+        if (wallpaper == null || wallpaper.getImagePath() == null) {
+            return null;
+        }
+
+        try {
+            Bitmap bitmap = null;
+            String imagePath = wallpaper.getImagePath();
+
+            if (imagePath.startsWith("partner://")) {
+                Drawable drawable = loadPartnerWallpaperDrawable(imagePath);
+                if (drawable instanceof BitmapDrawable) {
+                    bitmap = ((BitmapDrawable) drawable).getBitmap();
+                } else if (drawable != null) {
+                    bitmap = Bitmap.createBitmap(
+                        drawable.getIntrinsicWidth(),
+                        drawable.getIntrinsicHeight(),
+                        Bitmap.Config.ARGB_8888
+                    );
+                    android.graphics.Canvas canvas = new android.graphics.Canvas(bitmap);
+                    drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+                    drawable.draw(canvas);
+                }
+            } else {
+                File imageFile = new File(imagePath);
+                if (imageFile.exists() && imageFile.canRead()) {
+                    BitmapFactory.Options options = new BitmapFactory.Options();
+                    options.inSampleSize = 8;
+                    bitmap = BitmapFactory.decodeFile(imagePath, options);
+                }
+            }
+
+            if (bitmap == null) {
+                return null;
+            }
+
+            int hashWidth = Math.min(bitmap.getWidth(), 32);
+            int hashHeight = Math.min(bitmap.getHeight(), 32);
+            Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap, hashWidth, hashHeight, false);
+
+            int[] pixels = new int[hashWidth * hashHeight];
+            scaledBitmap.getPixels(pixels, 0, hashWidth, 0, 0, hashWidth, hashHeight);
+
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            ByteBuffer buffer = ByteBuffer.allocate(pixels.length * 4);
+            for (int pixel : pixels) {
+                buffer.putInt(pixel);
+            }
+            byte[] digest = md.digest(buffer.array());
+
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : digest) {
+                hexString.append(String.format("%02x", b));
+            }
+
+            scaledBitmap.recycle();
+            if (!imagePath.startsWith("partner://")) {
+                bitmap.recycle();
+            }
+
+            return hexString.toString();
+        } catch (Exception e) {
+            Log.e(TAG, "Error calculating wallpaper hash for: " + wallpaper.getImagePath(), e);
             return null;
         }
     }
