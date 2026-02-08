@@ -62,7 +62,7 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
   private static final String TAG = "Launcher3:QuickSpaceView";
   private static final boolean DEBUG = false;
 
-  public final ColorStateList mColorStateList;
+  public ColorStateList mColorStateList;
   public BubbleTextView mBubbleTextView;
   public final int mQuickspaceBackgroundRes;
 
@@ -145,8 +145,7 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
   public QuickSpaceView(Context context, AttributeSet set) {
     super(context, set);
     mController = QuickspaceController.getInstance(context);
-    mColorStateList =
-        ColorStateList.valueOf(Themes.getAttrColor(getContext(), R.attr.workspaceTextColor));
+    refreshColorStateList();
     mQuickspaceBackgroundRes = R.drawable.bg_quickspace;
     setClipChildren(false);
   }
@@ -182,10 +181,11 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
         post(
             () -> {
               if (!mDestroyed && mQuickspaceContent != null) {
-                mQuickspaceContent.requestLayout();
                 requestLayout();
               }
             });
+        refreshColorStateList();
+        updateColorForViews();
       }
     }
   }
@@ -658,11 +658,28 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     endBatchEdit();
   }
 
+  private void refreshColorStateList() {
+      mColorStateList = ColorStateList.valueOf(Themes.getAttrColor(getContext(), R.attr.workspaceTextColor));
+  }
+
+  private void updateColorForViews() {
+      if (mEventTitle != null) mEventTitle.setTextColor(mColorStateList);
+      if (mQuickspaceDayOfWeek != null) mQuickspaceDayOfWeek.setTextColor(mColorStateList);
+      if (mQuickspaceDate != null) mQuickspaceDate.setTextColor(mColorStateList);
+      if (mBatteryDeviceName != null) mBatteryDeviceName.setTextColor(mColorStateList);
+      if (mBatteryIcon != null) mBatteryIcon.setImageTintList(mColorStateList);
+      if (mBatteryChargingOverlay != null) mBatteryChargingOverlay.setImageTintList(mColorStateList);
+  }
+
   private void updateBatteryPillContent() {
     QuickBatteryController batController = mController.getBatteryController();
     if (batController == null) return;
 
     String currentAddress = batController.getCurrentDeviceAddress();
+
+    refreshColorStateList();
+    updateColorForViews();
+
     boolean deviceChanged = mLastDeviceAddress != null && !TextUtils.equals(currentAddress, mLastDeviceAddress);
 
     if (deviceChanged) {
@@ -857,13 +874,12 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     int textColor;
     int backplateColor;
 
-    if (level <= 10) {
-      progressColor = Themes.getAttrColor(getContext(), android.R.attr.colorError);
-      backplateColor = progressColor;
-      textColor = Color.BLACK;
-      mBatteryPercentage.setTypeface(Typeface.DEFAULT_BOLD);
-    } else if (level <= 20) {
-      progressColor = 0xFFFBC02D;
+    if (level <= 20) {
+      if (level <= 10) {
+          progressColor = Themes.getAttrColor(getContext(), android.R.attr.colorError);
+      } else {
+          progressColor = 0xFFFBC02D;
+      }
       backplateColor = progressColor;
       textColor = Color.BLACK;
       mBatteryPercentage.setTypeface(Typeface.DEFAULT_BOLD);
@@ -872,9 +888,9 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
       backplateColor = 0x4D000000;
 
       if (level >= 90 && !isCharging) {
-        textColor = 0x99FFFFFF;
+        textColor = mColorStateList.withAlpha(150).getDefaultColor();
       } else {
-        textColor = Color.WHITE;
+        textColor = mColorStateList.getDefaultColor();
       }
       mBatteryPercentage.setTypeface(isCharging ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
     }
@@ -1005,6 +1021,7 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
       mBatteryIcon = findViewById(R.id.battery_icon);
       mBatteryChargingOverlay = findViewById(R.id.battery_charging_overlay);
       mBatteryDotsContainer = findViewById(R.id.battery_dots_container);
+      mBatteryShimmer = findViewById(R.id.battery_shimmer_view);
     }
     boolean hasGoogleApp =
         isPackageEnabled("com.google.android.googlequicksearchbox", getContext());
@@ -1237,20 +1254,6 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
   @Override
   public void onLayout(boolean b, int n, int n2, int n3, int n4) {
     super.onLayout(b, n, n2, n3, n4);
-  }
-
-  @Override
-  protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-    if (mQuickspaceContent != null && !mViewsLoaded) {
-      int heightMode = MeasureSpec.getMode(heightMeasureSpec);
-      int heightSize = MeasureSpec.getSize(heightMeasureSpec);
-
-      if (heightMode != MeasureSpec.UNSPECIFIED) {
-        heightMeasureSpec = MeasureSpec.makeMeasureSpec(heightSize, MeasureSpec.AT_MOST);
-      }
-    }
-
-    super.onMeasure(widthMeasureSpec, heightMeasureSpec);
   }
 
   public void onPause() {
