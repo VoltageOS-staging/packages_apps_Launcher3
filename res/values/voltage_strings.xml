@@ -561,4 +561,8 @@
     <string name="feed_default">Default</string>
     <string name="caddy_beta">Caddy (Beta)</string>
 
+    <!-- Wallpaper Carousel -->
+    <string name="wallpaper_carousel_title">Wallpaper carousel</string>
+    <string name="wallpaper_carousel_summary">Show wallpaper carousel in launcher options menu</string>
+
 </resources>

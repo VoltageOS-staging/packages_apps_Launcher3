@@ -24,6 +24,7 @@ import androidx.cardview.widget.CardView;
 import androidx.core.content.ContextCompat;
 
 import com.android.launcher3.DeviceProfile;
+import com.android.launcher3.LauncherPrefs;
 import com.android.launcher3.views.IconFrame;
 import com.android.launcher3.R;
 import static com.android.launcher3.util.Executors.MAIN_EXECUTOR;
@@ -61,6 +62,12 @@ public class WallpaperCarouselView extends LinearLayout {
     }
 
     private void fetchWallpapers() {
+        if (!LauncherPrefs.WALLPAPER_CAROUSEL.get(getContext())) {
+            loadingView.setVisibility(GONE);
+            setVisibility(GONE);
+            return;
+        }
+
         UI_HELPER_EXECUTOR.execute(() -> {
             try {
                 List<Wallpaper> wallpapers = WallpaperDatabase.INSTANCE.get(getContext()).getTopWallpapers();
@@ -103,6 +110,11 @@ public class WallpaperCarouselView extends LinearLayout {
     }
 
     private void displayWallpapers(List<Wallpaper> wallpapers) {
+        if (!LauncherPrefs.WALLPAPER_CAROUSEL.get(getContext())) {
+            setVisibility(GONE);
+            return;
+        }
+
         // Remove the ProgressBar if it exists
         if (getChildAt(0) instanceof ProgressBar) {
             removeViewAt(0);
