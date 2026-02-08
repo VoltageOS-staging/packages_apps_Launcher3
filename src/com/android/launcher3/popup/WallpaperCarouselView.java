@@ -2,6 +2,10 @@ package com.android.launcher3.popup;
 
 import android.animation.ValueAnimator;
 import android.app.WallpaperManager;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
+import android.content.res.Resources;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -9,6 +13,7 @@ import android.util.AttributeSet;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
+import android.graphics.drawable.Drawable;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -36,6 +41,7 @@ import java.util.List;
 
 public class WallpaperCarouselView extends LinearLayout {
     private final DeviceProfile deviceProfile;
+    private static final String TAG = "WallpaperCarouselView";
     private final ProgressBar loadingView;
     private int currentItemIndex = 0;
     private final IconFrame iconFrame;
@@ -58,6 +64,9 @@ public class WallpaperCarouselView extends LinearLayout {
         UI_HELPER_EXECUTOR.execute(() -> {
             try {
                 List<Wallpaper> wallpapers = WallpaperDatabase.INSTANCE.get(getContext()).getTopWallpapers();
+
+                List<Wallpaper> partnerWallpapers = queryPartnerWallpapers();
+                wallpapers.addAll(partnerWallpapers);
 
                 // Deduplicate wallpapers by imagePath
                 Set<String> seenImagePaths = new HashSet<>();
@@ -84,7 +93,7 @@ public class WallpaperCarouselView extends LinearLayout {
                     }
                 });
             } catch (Exception e) {
-                Log.e("WallpaperCarouselView", "Error fetching wallpapers: " + e.getMessage());
+                Log.e(TAG, "Error fetching wallpapers: " + e.getMessage());
                 MAIN_EXECUTOR.execute(() -> {
                     loadingView.setVisibility(GONE);
                     setVisibility(GONE);
@@ -196,11 +205,25 @@ public class WallpaperCarouselView extends LinearLayout {
     private void loadWallpaperBitmapAsync(Wallpaper wallpaper, CardView cardView) {
         UI_HELPER_EXECUTOR.execute(() -> {
             try {
-                File imageFile = new File(wallpaper.getImagePath());
+                String imagePath = wallpaper.getImagePath();
+
+                if (imagePath.startsWith("partner://")) {
+                    Drawable drawable = loadPartnerWallpaperDrawable(imagePath);
+                    if (drawable != null) {
+                        post(() -> {
+                            ImageView imageView = (ImageView) cardView.getChildAt(0);
+                            if (imageView != null) imageView.setImageDrawable(drawable);
+                            if (cardView == getChildAt(currentItemIndex)) addIconFrameToCard(cardView);
+                        });
+                    }
+                    return;
+                }
+
+                File imageFile = new File(imagePath);
                 if (imageFile.exists() && imageFile.canRead()) {
                     BitmapFactory.Options options = new BitmapFactory.Options();
                     options.inSampleSize = 2; // Scale down bitmap to reduce memory usage
-                    Bitmap bitmap = BitmapFactory.decodeFile(wallpaper.getImagePath(), options);
+                    Bitmap bitmap = BitmapFactory.decodeFile(imagePath, options);
                     if (bitmap != null) {
                         post(() -> {
                             ImageView imageView = (ImageView) cardView.getChildAt(0);
@@ -210,7 +233,7 @@ public class WallpaperCarouselView extends LinearLayout {
                     }
                 }
             } catch (Exception e) {
-                Log.e("WallpaperCarouselView", "Error loading wallpaper bitmap: " + e.getMessage());
+                Log.e(TAG, "Error loading wallpaper bitmap: " + e.getMessage());
             }
         });
     }
@@ -235,6 +258,23 @@ public class WallpaperCarouselView extends LinearLayout {
         UI_HELPER_EXECUTOR.execute(() -> {
             try {
                 WallpaperManager wallpaperManager = WallpaperManager.getInstance(getContext());
+
+                if (wallpaper.getImagePath().startsWith("partner://")) {
+                    Drawable drawable = loadPartnerWallpaperDrawable(wallpaper.getImagePath());
+                    if (drawable != null) {
+                        Bitmap bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(), 
+                                                           drawable.getIntrinsicHeight(), 
+                                                           Bitmap.Config.ARGB_8888);
+                        android.graphics.Canvas canvas = new android.graphics.Canvas(bitmap);
+                        drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+                        drawable.draw(canvas);
+                        wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_SYSTEM);
+                        wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_LOCK);
+                        bitmap.recycle();
+                    }
+                    return;
+                }
+
                 Bitmap bitmap = BitmapFactory.decodeFile(wallpaper.getImagePath());
                 if (bitmap != null) {
                     wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_SYSTEM);
@@ -256,7 +296,7 @@ public class WallpaperCarouselView extends LinearLayout {
                     });
                 }
             } catch (Exception e) {
-                Log.e("WallpaperCarouselView", "Error setting wallpaper: " + e.getMessage());
+                Log.e(TAG, "Error setting wallpaper: " + e.getMessage());
                 MAIN_EXECUTOR.execute(() -> {
                     currentCardView.removeView(loadingSpinner);
                     addIconFrameToCard(currentCardView);
@@ -314,5 +354,65 @@ public class WallpaperCarouselView extends LinearLayout {
                 removeAllViews();
             });
         });
+    }
+
+    /**
+     * Query partner wallpaper providers like Covers app
+     * Partner apps register with action "com.android.launcher3.action.PARTNER_CUSTOMIZATION"
+     */
+    private List<Wallpaper> queryPartnerWallpapers() {
+        List<Wallpaper> wallpapers = new ArrayList<>();
+        PackageManager pm = getContext().getPackageManager();
+
+        Intent intent = new Intent("com.android.launcher3.action.PARTNER_CUSTOMIZATION");
+        List<ResolveInfo> providers = pm.queryBroadcastReceivers(intent, 0);
+
+        for (ResolveInfo provider : providers) {
+            try {
+                String packageName = provider.activityInfo.packageName;
+                Log.d(TAG, "Found partner wallpaper provider: " + packageName);
+
+                Resources partnerRes = pm.getResourcesForApplication(packageName);
+
+                int arrayId = partnerRes.getIdentifier("partner_wallpapers", "array", packageName);
+                if (arrayId == 0) {
+                    Log.w(TAG, "No partner_wallpapers array found in " + packageName);
+                    continue;
+                }
+
+                String[] wallpaperNames = partnerRes.getStringArray(arrayId);
+                Log.d(TAG, "Found " + wallpaperNames.length + " wallpapers in " + packageName);
+
+                for (int i = 0; i < wallpaperNames.length; i++) {
+                    String wallpaperName = wallpaperNames[i];
+
+                    String imagePath = "partner://" + packageName + "/" + wallpaperName;
+
+                    long timestamp = System.currentTimeMillis() - (i * 1000);
+                    Wallpaper wallpaper = new Wallpaper(0, imagePath, i, timestamp);
+                    wallpapers.add(wallpaper);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error loading partner wallpapers from " + provider.activityInfo.packageName, e);
+            }
+        }
+
+        Log.d(TAG, "Loaded " + wallpapers.size() + " partner wallpapers");
+        return wallpapers;
+    }
+
+    /**
+     * Load a partner wallpaper drawable from the provider app
+     */
+    private Drawable loadPartnerWallpaperDrawable(String partnerPath) {
+        try {
+            String[] parts = partnerPath.replace("partner://", "").split("/", 2);
+            Resources partnerRes = getContext().getPackageManager().getResourcesForApplication(parts[0]);
+            int drawableId = partnerRes.getIdentifier(parts[1], "drawable", parts[0]);
+            return partnerRes.getDrawable(drawableId, null);
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading partner wallpaper drawable: " + partnerPath, e);
+            return null;
+        }
     }
 }
