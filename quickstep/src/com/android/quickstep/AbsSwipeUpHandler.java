@@ -1215,6 +1215,9 @@ public abstract class AbsSwipeUpHandler<
     @UiThread
     public void onGestureCancelled() {
         updateDisplacement(0);
+
+        endRunningWindowAnim(/* cancel= */ true);
+
         mStateCallback.setStateOnUiThread(STATE_GESTURE_COMPLETED);
         handleNormalGestureEnd(
                 /* endVelocityPxPerMs= */ 0,
@@ -2408,6 +2411,10 @@ public abstract class AbsSwipeUpHandler<
      */
     private void cancelCurrentAnimation() {
         ActiveGestureProtoLogProxy.logAbsSwipeUpHandlerCancelCurrentAnimation();
+        if (mCanceled) {
+            return;
+        }
+
         mCanceled = true;
         mCurrentShift.cancelAnimation();
 
@@ -2422,6 +2429,11 @@ public abstract class AbsSwipeUpHandler<
     private void invalidateHandler() {
         mInputConsumerProxy.unregisterOnTouchDownCallback();
         mInputConsumerProxy.destroy();
+
+        if (!mCanceled) {
+            cancelCurrentAnimation();
+        }
+
         mTaskAnimationManager.setLiveTileCleanUpHandler(null);
         endRunningWindowAnim(false /* cancel */);
 

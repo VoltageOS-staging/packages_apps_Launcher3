@@ -485,6 +485,10 @@ public class OtherActivityInputConsumer extends ContextWrapper implements InputC
      * the animation can still be running.
      */
     private void finishTouchTracking(MotionEvent ev) {
+        if (mVelocityTracker == null) {
+            return;
+        }
+
         TraceHelper.INSTANCE.beginSection(UP_EVT);
         if (DEBUG) {
             Log.d(TAG, "finishTouchTracking: mPassedWindowMoveSlop=" + mPassedWindowMoveSlop);
@@ -552,6 +556,10 @@ public class OtherActivityInputConsumer extends ContextWrapper implements InputC
             mVelocityTracker.recycle();
             mVelocityTracker = null;
         }
+
+        mActivePointerId = INVALID_POINTER_ID;
+        mPassedWindowMoveSlop = false;
+        mPassedSlopOnThisGesture = false;
         mMotionPauseDetector.clear();
         // Clear ref to recents view and launcher activity on action up or cancel to avoid leak
         mRecentsViewDispatcher.clearConsumer();

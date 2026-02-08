@@ -55,6 +55,7 @@ public class InputConsumerProxy {
 
     private boolean mDestroyed = false;
     private boolean mTouchInProgress = false;
+    private boolean mWaitingForDown = false;
     private boolean mDestroyPending = false;
 
     public InputConsumerProxy(Context context, Supplier<Integer> rotationSupplier,
@@ -97,6 +98,13 @@ public class InputConsumerProxy {
     private boolean onInputConsumerMotionEvent(MotionEvent ev) {
         int action = ev.getAction();
 
+        if (mWaitingForDown && action != ACTION_DOWN) {
+            if (action == ACTION_CANCEL || action == ACTION_UP) {
+                mWaitingForDown = false;
+            }
+            return false;
+        }
+
         // Just to be safe, verify that ACTION_DOWN comes before any other action,
         // and ignore any ACTION_DOWN after the first one (though that should not happen).
         if (!mTouchInProgress && action != ACTION_DOWN) {
@@ -114,13 +122,14 @@ public class InputConsumerProxy {
         final boolean needTransform = viewRotation != ev.getSurfaceRotation();
         if (action == ACTION_DOWN) {
             mTouchInProgress = true;
+            mWaitingForDown = false;
             if (needTransform) {
                 touchTransformer.updateTouchingOrientation(viewRotation);
             }
             initInputConsumerIfNeeded(/* isFromTouchDown= */ true);
         } else if (action == ACTION_CANCEL || action == ACTION_UP) {
             // Finish any pending actions
-            mTouchInProgress = false;
+            mWaitingForDown = true;
             touchTransformer.clearTouchingOrientation();
             if (mDestroyPending) {
                 destroy();
@@ -146,6 +155,8 @@ public class InputConsumerProxy {
     }
 
     public void destroy() {
+        mTouchInProgress = false;
+        mWaitingForDown = false;
         if (mTouchInProgress) {
             mDestroyPending = true;
             return;
