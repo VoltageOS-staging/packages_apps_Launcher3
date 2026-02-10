@@ -34,6 +34,7 @@ import android.provider.CalendarContract;
 import android.text.TextUtils;
 import android.text.TextUtils.TruncateAt;
 import android.util.AttributeSet;
+import android.view.HapticFeedbackConstants;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -60,7 +61,20 @@ import com.android.launcher3.util.Themes;
 public class QuickSpaceView extends FrameLayout implements OnDataListener {
 
   private static final String TAG = "Launcher3:QuickSpaceView";
-  private static final boolean DEBUG = false;
+  
+  private static final int BATTERY_FULL_THRESHOLD = 95;
+  private static final int BATTERY_LOW_THRESHOLD = 20;
+  private static final int BATTERY_CRITICAL_THRESHOLD = 10;
+  private static final long SHIMMER_DURATION_MS = 2800;
+  private static final float SHIMMER_WIDTH_RATIO = 0.30f;
+  private static final int MIN_SHIMMER_WIDTH_DP = 30;
+  private static final int BATTERY_CHANGE_THRESHOLD = 5;
+  private static final long MIN_UPDATE_INTERVAL = 100;
+  private static final int COLOR_TRANSITION_DURATION = 200;
+  private static final int ANIMATE_IN_DURATION = 200;
+  private static final int ANIMATE_OUT_DURATION = 250;
+  private static final int BATTERY_PROGRESS_DURATION = 350;
+  private static final int DEVICE_SWITCH_DURATION = 160;
 
   public ColorStateList mColorStateList;
   public BubbleTextView mBubbleTextView;
@@ -126,15 +140,16 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
   private int mLastWeatherTempHash = 0;
   private int mLastActionTitleHash = 0;
   private long mLastUpdateTime = 0;
-  private static final long MIN_UPDATE_INTERVAL = 100;
 
   private QuickSpaceActionReceiver mActionReceiver;
+  
+  private ColorStateList mCachedColorStateList;
+  private boolean mCachedUseBlackText = false;
 
   private final android.content.BroadcastReceiver mWallpaperChangeReceiver = new android.content.BroadcastReceiver() {
     @Override
     public void onReceive(android.content.Context context, android.content.Intent intent) {
       if (android.content.Intent.ACTION_WALLPAPER_CHANGED.equals(intent.getAction())) {
-        // Wallpaper changed - refresh colors immediately
         post(() -> {
           if (!mDestroyed) {
             refreshColorStateList();
@@ -220,8 +235,8 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
       case 2:
         loadLargeStyle();
         break;
-      case 1: // Extended
-      case 0: // Default
+      case 1:
+      case 0:
       default:
         loadDoubleLine(style == 1);
         break;
@@ -634,6 +649,7 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
                   v.animate().cancel();
                   if (mShimmerAnimator != null) mShimmerAnimator.cancel();
                   v.animate().scaleX(0.98f).scaleY(0.98f).alpha(0.96f).setDuration(80).start();
+                  v.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK);
                   return true;
                 case MotionEvent.ACTION_UP:
                   v.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(120).start();
@@ -679,78 +695,100 @@ public class QuickSpaceView extends FrameLayout implements OnDataListener {
     endBatchEdit();
   }
 
-private void refreshColorStateList() {
-      boolean useBlack = LauncherPrefs.getPrefs(getContext()).getBoolean("pref_quickspace_black_text", false);
-      int color;
-
-      if (useBlack) {
-          color = Color.BLACK;
-      } else {
-          color = Themes.getAttrColor(getContext(), R.attr.workspaceTextColor);
-      }
-      mColorStateList = ColorStateList.valueOf(color);
+  private void refreshColorStateList() {
+    boolean useBlack = LauncherPrefs.getPrefs(getContext()).getBoolean("pref_quickspace_black_text", false);
+    
+    if (mCachedColorStateList != null && mCachedUseBlackText == useBlack) {
+        mColorStateList = mCachedColorStateList;
+        return;
+    }
+    
+    int color = useBlack ? Color.BLACK : Themes.getAttrColor(getContext(), R.attr.workspaceTextColor);
+    mColorStateList = ColorStateList.valueOf(color);
+    mCachedColorStateList = mColorStateList;
+    mCachedUseBlackText = useBlack;
   }
 
-private void updateColorForViews() {
-      if (mEventTitle != null) {
-          mEventTitle.setTextColor(mColorStateList);
-          updateShadows(mEventTitle);
-      }
-      if (mQuickspaceDayOfWeek != null) {
-          mQuickspaceDayOfWeek.setTextColor(mColorStateList);
-          updateShadows(mQuickspaceDayOfWeek);
-      }
-      // FIX 1: Apply black text toggle to clock
-      if (mQuickspaceClock != null) {
-          mQuickspaceClock.setTextColor(mColorStateList);
-          updateShadows(mQuickspaceClock);
-      }
-      if (mQuickspaceDate != null) {
-          mQuickspaceDate.setTextColor(mColorStateList);
-          updateShadows(mQuickspaceDate);
-      }
-      // Apply shadows to PSA and weather text
-      if (mPSAMessage != null) {
-          mPSAMessage.setTextColor(mColorStateList);
-          updateShadows(mPSAMessage);
-      }
-      if (mWeatherTempSub != null) {
-          mWeatherTempSub.setTextColor(mColorStateList);
-          updateShadows(mWeatherTempSub);
-      }
-      if (mEventTitleSub != null) {
-          mEventTitleSub.setTextColor(mColorStateList);
-          updateShadows(mEventTitleSub);
-      }
-      if (mNowPlayingText != null) {
-          mNowPlayingText.setTextColor(mColorStateList);
-          updateShadows(mNowPlayingText);
-      }
-      if (mGreetingsExt != null) {
-          mGreetingsExt.setTextColor(mColorStateList);
-          updateShadows(mGreetingsExt);
-      }
-      if (mGreetingsExtClock != null) {
-          mGreetingsExtClock.setTextColor(mColorStateList);
-          updateShadows(mGreetingsExtClock);
-      }
-      if (mEventTitleSubColored != null) {
-          mEventTitleSubColored.setTextColor(mColorStateList);
-          updateShadows(mEventTitleSubColored);
-      }
-      
-      if (mBatteryDeviceName != null) mBatteryDeviceName.setTextColor(mColorStateList);
-      
-      // Icons
-      if (mBatteryIcon != null) mBatteryIcon.setImageTintList(mColorStateList);
-      if (mBatteryChargingOverlay != null) mBatteryChargingOverlay.setImageTintList(mColorStateList);
+  private void updateColorForViews() {
+    if (mColorStateList == null) {
+        refreshColorStateList();
+        if (mColorStateList == null) return;
+    }
+    
+    int targetColor = mColorStateList.getDefaultColor();
+    
+    if (mEventTitle != null) {
+        animateTextColor(mEventTitle, targetColor);
+        updateShadows(mEventTitle);
+    }
+    if (mQuickspaceDayOfWeek != null) {
+        animateTextColor(mQuickspaceDayOfWeek, targetColor);
+        updateShadows(mQuickspaceDayOfWeek);
+    }
+    if (mQuickspaceClock != null) {
+        animateTextColor(mQuickspaceClock, targetColor);
+        updateShadows(mQuickspaceClock);
+    }
+    if (mQuickspaceDate != null) {
+        animateTextColor(mQuickspaceDate, targetColor);
+        updateShadows(mQuickspaceDate);
+    }
+    if (mPSAMessage != null) {
+        animateTextColor(mPSAMessage, targetColor);
+        updateShadows(mPSAMessage);
+    }
+    if (mWeatherTempSub != null) {
+        animateTextColor(mWeatherTempSub, targetColor);
+        updateShadows(mWeatherTempSub);
+    }
+    if (mEventTitleSub != null) {
+        animateTextColor(mEventTitleSub, targetColor);
+        updateShadows(mEventTitleSub);
+    }
+    if (mNowPlayingText != null) {
+        animateTextColor(mNowPlayingText, targetColor);
+        updateShadows(mNowPlayingText);
+    }
+    if (mGreetingsExt != null) {
+        animateTextColor(mGreetingsExt, targetColor);
+        updateShadows(mGreetingsExt);
+    }
+    if (mGreetingsExtClock != null) {
+        animateTextColor(mGreetingsExtClock, targetColor);
+        updateShadows(mGreetingsExtClock);
+    }
+    if (mEventTitleSubColored != null) {
+        animateTextColor(mEventTitleSubColored, targetColor);
+        updateShadows(mEventTitleSubColored);
+    }
+    
+    if (mBatteryDeviceName != null) {
+        animateTextColor(mBatteryDeviceName, targetColor);
+    }
+    
+    if (mBatteryIcon != null) mBatteryIcon.setImageTintList(mColorStateList);
+    if (mBatteryChargingOverlay != null) mBatteryChargingOverlay.setImageTintList(mColorStateList);
   }
 
-  // FIX 2: Remove all shadows from elements
+  private void animateTextColor(TextView view, int toColor) {
+    if (view == null) return;
+    
+    int fromColor = view.getCurrentTextColor();
+    if (fromColor == toColor) return;
+    
+    ValueAnimator colorAnim = ValueAnimator.ofArgb(fromColor, toColor);
+    colorAnim.setDuration(COLOR_TRANSITION_DURATION);
+    colorAnim.addUpdateListener(animator -> {
+        if (view != null && !mDestroyed) {
+            view.setTextColor((int) animator.getAnimatedValue());
+        }
+    });
+    colorAnim.start();
+  }
+
   private void updateShadows(TextView view) {
-      if (view == null) return;
-      // Always remove shadows - no shadow layer applied
-      view.setShadowLayer(0, 0, 0, 0);
+    if (view == null) return;
+    view.setShadowLayer(0, 0, 0, 0);
   }
 
   private void updateBatteryPillContent() {
@@ -778,7 +816,7 @@ private void updateColorForViews() {
         .animate()
         .alpha(0f)
         .translationX(-dpToPx(6))
-        .setDuration(160)
+        .setDuration(DEVICE_SWITCH_DURATION)
         .setInterpolator(new PathInterpolator(0.4f, 0f, 1f, 1f))
         .withEndAction(
             () -> {
@@ -789,7 +827,7 @@ private void updateColorForViews() {
                   .animate()
                   .alpha(1f)
                   .translationX(0f)
-                  .setDuration(160)
+                  .setDuration(DEVICE_SWITCH_DURATION)
                   .setInterpolator(new PathInterpolator(0f, 0f, 0.2f, 1f))
                   .start();
             })
@@ -797,26 +835,10 @@ private void updateColorForViews() {
   }
 
   private void applyBatteryData(QuickBatteryController batController) {
-
     String deviceName = batController.getDeviceName();
     int level = batController.getBatteryLevel();
     boolean isAudio = batController.isAudioDevice();
-    boolean isCharging = batController.isCharging();
-    
-    // CRITICAL FIX: Always verify charging state with system BatteryManager
-    // The controller might have stale state, so check actual battery status
-    try {
-      android.os.BatteryManager bm = (android.os.BatteryManager) 
-          getContext().getSystemService(android.content.Context.BATTERY_SERVICE);
-      if (bm != null) {
-        int status = bm.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_STATUS);
-        // Override with actual system state
-        isCharging = (status == android.os.BatteryManager.BATTERY_STATUS_CHARGING ||
-                     status == android.os.BatteryManager.BATTERY_STATUS_FULL);
-      }
-    } catch (Exception e) {
-      // If we can't get system state, trust the controller
-    }
+    boolean isCharging = getActualChargingState(batController);
 
     updateTextViewIfNeeded(mBatteryDeviceName, deviceName, false);
     String percentStr = level + "%";
@@ -829,7 +851,6 @@ private void updateColorForViews() {
       mBatteryIcon.setImageResource(iconRes);
     }
 
-    // FIX 3: Remove charging bolt overlay - always keep it hidden
     if (mBatteryChargingOverlay != null) {
       if (mBatteryChargingOverlay.getVisibility() != View.GONE) {
         mBatteryChargingOverlay.setVisibility(View.GONE);
@@ -841,6 +862,23 @@ private void updateColorForViews() {
     updateChargingShimmer(isCharging, level);
 
     updateBatteryDots();
+  }
+
+  private boolean getActualChargingState(QuickBatteryController batController) {
+    boolean controllerState = batController.isCharging();
+    
+    try {
+      android.os.BatteryManager bm = (android.os.BatteryManager) 
+          getContext().getSystemService(android.content.Context.BATTERY_SERVICE);
+      if (bm != null) {
+        int status = bm.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_STATUS);
+        return (status == android.os.BatteryManager.BATTERY_STATUS_CHARGING ||
+                status == android.os.BatteryManager.BATTERY_STATUS_FULL);
+      }
+    } catch (Exception e) {
+    }
+    
+    return controllerState;
   }
 
   private void cycleBatteryDevice() {
@@ -888,25 +926,19 @@ private void updateColorForViews() {
   private void updateChargingShimmer(boolean isCharging, int level) {
     if (mBatteryShimmer == null) return;
 
-    if (isCharging && level < 95) {
-      if (mBatteryShimmer.getVisibility() != View.VISIBLE) {
+    if (mShimmerAnimator != null) {
+        mShimmerAnimator.cancel();
+        mShimmerAnimator = null;
+    }
+
+    if (isCharging && level < BATTERY_FULL_THRESHOLD) {
         mBatteryShimmer.setVisibility(View.VISIBLE);
         mBatteryShimmer.setAlpha(1f);
         startShimmerAnimation();
-      } else if (mShimmerAnimator == null || !mShimmerAnimator.isRunning()) {
-        startShimmerAnimation();
-      }
     } else {
-      // Properly stop shimmer animation
-      if (mShimmerAnimator != null && mShimmerAnimator.isRunning()) {
-        mShimmerAnimator.cancel();
-        mShimmerAnimator = null;
-      }
-      if (mBatteryShimmer.getVisibility() != View.GONE) {
         mBatteryShimmer.setVisibility(View.GONE);
         mBatteryShimmer.setAlpha(0f);
         mBatteryShimmer.setTranslationX(0f);
-      }
     }
   }
 
@@ -935,21 +967,21 @@ private void updateColorForViews() {
 
   private void startShimmerAnimationInternal() {
       mBatteryShimmer.post(() -> {
-          if (mBatteryProgress == null || mBatteryShimmer == null) return;
+          if (mBatteryProgress == null || mBatteryShimmer == null || mDestroyed) return;
 
           mShimmerAnimator = ValueAnimator.ofFloat(0, 1);
-          mShimmerAnimator.setDuration(2800);
+          mShimmerAnimator.setDuration(SHIMMER_DURATION_MS);
           mShimmerAnimator.setInterpolator(new LinearInterpolator());
           mShimmerAnimator.setRepeatCount(ValueAnimator.INFINITE);
           mShimmerAnimator.addUpdateListener(
               val -> {
-                if (mBatteryProgress == null || mBatteryShimmer == null) return;
+                if (mBatteryProgress == null || mBatteryShimmer == null || mDestroyed) return;
 
                 float currentParentWidth = mBatteryProgress.getWidth();
                 if (currentParentWidth <= 0) return;
 
-                float desiredShimmerWidth = currentParentWidth * 0.30f;
-                float minShimmer = dpToPx(30);
+                float desiredShimmerWidth = currentParentWidth * SHIMMER_WIDTH_RATIO;
+                float minShimmer = dpToPx(MIN_SHIMMER_WIDTH_DP);
                 if (desiredShimmerWidth < minShimmer) desiredShimmerWidth = minShimmer;
 
                 if (mBatteryShimmer.getLayoutParams().width != (int) desiredShimmerWidth) {
@@ -975,8 +1007,8 @@ private void updateColorForViews() {
     int textColor;
     int backplateColor;
 
-    if (level <= 20) {
-      if (level <= 10) {
+    if (level <= BATTERY_LOW_THRESHOLD) {
+      if (level <= BATTERY_CRITICAL_THRESHOLD) {
           progressColor = Themes.getAttrColor(getContext(), android.R.attr.colorError);
       } else {
           progressColor = 0xFFFBC02D;
@@ -1011,7 +1043,7 @@ private void updateColorForViews() {
       int midColor = Color.argb(25, r, g, b);
       int endColor = 0x00FFFFFF;
 
-      if (level < 20) {
+      if (level < BATTERY_LOW_THRESHOLD) {
         startColor = Color.argb(200, r, g, b);
         midColor = Color.argb(100, r, g, b);
       }
@@ -1019,7 +1051,7 @@ private void updateColorForViews() {
       gd.setColors(new int[] {startColor, midColor, endColor});
       gd.setOrientation(GradientDrawable.Orientation.LEFT_RIGHT);
 
-      gd.setAlpha(level < 20 ? 255 : 255);
+      gd.setAlpha(level < BATTERY_LOW_THRESHOLD ? 255 : 255);
     }
   }
 
@@ -1032,7 +1064,7 @@ private void updateColorForViews() {
           int totalWidth = mBatteryRow.getWidth();
           int targetWidth = (int) ((totalWidth * level) / 100f);
 
-          boolean significantChange = Math.abs(level - mLastBatteryLevel) >= 5;
+          boolean significantChange = Math.abs(level - mLastBatteryLevel) >= BATTERY_CHANGE_THRESHOLD;
           boolean stateChange = isCharging != mLastChargingState;
           boolean firstRun = mLastBatteryLevel == -1;
 
@@ -1046,11 +1078,11 @@ private void updateColorForViews() {
             if (!firstRun && (significantChange || stateChange)) {
               mBatteryProgressAnimator =
                   ValueAnimator.ofInt(mBatteryProgress.getLayoutParams().width, targetWidth);
-              mBatteryProgressAnimator.setDuration(350);
+              mBatteryProgressAnimator.setDuration(BATTERY_PROGRESS_DURATION);
               mBatteryProgressAnimator.setInterpolator(new DecelerateInterpolator(1.5f));
               mBatteryProgressAnimator.addUpdateListener(
                   animation -> {
-                    if (mBatteryProgress == null) return;
+                    if (mBatteryProgress == null || mDestroyed) return;
                     ViewGroup.LayoutParams lp = mBatteryProgress.getLayoutParams();
                     lp.width = (int) animation.getAnimatedValue();
                     mBatteryProgress.setLayoutParams(lp);
@@ -1101,18 +1133,17 @@ private void updateColorForViews() {
     mWeatherContentSub = (ViewGroup) findViewById(R.id.quick_event_weather_content);
     mWeatherTempSub = (TextView) findViewById(R.id.quick_event_weather_temp);
     
-    // Prevent clipping during animations and transitions
     if (mQuickspaceContent != null) {
       mQuickspaceContent.setClipChildren(false);
       mQuickspaceContent.setClipToPadding(false);
     }
     
-    if (mCurrentStyle == 1) { // Extended style
+    if (mCurrentStyle == 1) {
       mGreetingsExtClock = (TextView) findViewById(R.id.extended_greetings_clock);
       mGreetingsExt = (TextView) findViewById(R.id.extended_greetings);
     }
 
-    if (mCurrentStyle == 2) { // Large style
+    if (mCurrentStyle == 2) {
       mQuickspaceDayOfWeek = findViewById(R.id.quickspace_day_of_week);
       mQuickspaceClock = (AccentedTextClock) findViewById(R.id.quickspace_clock);
       mQuickspaceDate = findViewById(R.id.quickspace_date);
@@ -1130,12 +1161,22 @@ private void updateColorForViews() {
       mBatteryDotsContainer = findViewById(R.id.battery_dots_container);
       mBatteryShimmer = findViewById(R.id.battery_shimmer_view);
       
-      // Prevent clipping for battery row animations
       if (mBatteryRow != null) {
         mBatteryRow.setClipChildren(false);
         mBatteryRow.setClipToPadding(false);
+        mBatteryRow.setContentDescription("Battery information");
+      }
+      
+      if (mQuickspaceClock != null) {
+        mQuickspaceClock.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
+        mQuickspaceClock.setContentDescription("Current time");
+      }
+      
+      if (mQuickspaceDate != null) {
+        mQuickspaceDate.setContentDescription("Current date");
       }
     }
+    
     boolean hasGoogleApp =
         isPackageEnabled("com.google.android.googlequicksearchbox", getContext());
     if (mWeatherContentSub != null) {
@@ -1222,7 +1263,7 @@ private void updateColorForViews() {
         view.animate()
             .alpha(1f)
             .translationY(0f)
-            .setDuration(200)
+            .setDuration(ANIMATE_IN_DURATION)
             .setInterpolator(new DecelerateInterpolator())
             .withEndAction(null);
     mCurrentAnimateIn.start();
@@ -1242,7 +1283,7 @@ private void updateColorForViews() {
         view.animate()
             .alpha(0f)
             .translationY(view.getHeight() / 2f)
-            .setDuration(250)
+            .setDuration(ANIMATE_OUT_DURATION)
             .setInterpolator(new AccelerateInterpolator())
             .withEndAction(
                 () -> {
@@ -1256,6 +1297,17 @@ private void updateColorForViews() {
   }
 
   private void cancelAllAnimations() {
+    View[] animatedViews = {
+        mEventTitleSub, mEventSubIcon, mEventTitleSubColored,
+        mNowPlayingIcon, mWeatherContentSub, mQuickspaceContent, mBatteryRow
+    };
+    
+    for (View view : animatedViews) {
+        if (view != null) {
+            view.animate().cancel();
+        }
+    }
+    
     if (mCurrentAnimateIn != null) {
       mCurrentAnimateIn.cancel();
       mCurrentAnimateIn = null;
@@ -1264,21 +1316,13 @@ private void updateColorForViews() {
       mCurrentAnimateOut.cancel();
       mCurrentAnimateOut = null;
     }
-
-    if (mEventTitleSub != null) mEventTitleSub.animate().cancel();
-    if (mEventSubIcon != null) mEventSubIcon.animate().cancel();
-    if (mEventTitleSubColored != null) mEventTitleSubColored.animate().cancel();
-    if (mNowPlayingIcon != null) mNowPlayingIcon.animate().cancel();
-    if (mWeatherContentSub != null) mWeatherContentSub.animate().cancel();
-    if (mQuickspaceContent != null) mQuickspaceContent.animate().cancel();
-    if (mBatteryRow != null) mBatteryRow.animate().cancel();
-
     if (mBatteryProgressAnimator != null) {
+      mBatteryProgressAnimator.removeAllUpdateListeners();
       mBatteryProgressAnimator.cancel();
       mBatteryProgressAnimator = null;
     }
-    
     if (mShimmerAnimator != null) {
+      mShimmerAnimator.removeAllUpdateListeners();
       mShimmerAnimator.cancel();
       mShimmerAnimator = null;
     }
@@ -1306,7 +1350,6 @@ private void updateColorForViews() {
       try {
         mController.removeListener(this);
       } catch (Exception e) {
-        // Ignore - controller might be destroyed
       }
     }
   }
@@ -1320,13 +1363,11 @@ private void updateColorForViews() {
 
     mAttached = true;
     
-    // Register wallpaper change listener
     try {
       android.content.IntentFilter filter = new android.content.IntentFilter(
           android.content.Intent.ACTION_WALLPAPER_CHANGED);
       getContext().registerReceiver(mWallpaperChangeReceiver, filter);
     } catch (Exception e) {
-      android.util.Log.e(TAG, "Failed to register wallpaper receiver", e);
     }
     
     post(
@@ -1345,11 +1386,9 @@ private void updateColorForViews() {
       return;
     }
 
-    // Unregister wallpaper change listener
     try {
       getContext().unregisterReceiver(mWallpaperChangeReceiver);
     } catch (Exception e) {
-      // Receiver wasn't registered or already unregistered
     }
 
     cancelAllAnimations();
@@ -1479,6 +1518,8 @@ private void updateColorForViews() {
     mBatteryChargingOverlay = null;
     mBatteryDotsContainer = null;
     mBatteryShimmer = null;
+    
+    mCachedColorStateList = null;
 
     setBackground(null);
     mAttached = false;
