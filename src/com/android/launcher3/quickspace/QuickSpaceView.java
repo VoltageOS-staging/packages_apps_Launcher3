@@ -700,6 +700,11 @@ private void updateColorForViews() {
           mQuickspaceDayOfWeek.setTextColor(mColorStateList);
           updateShadows(mQuickspaceDayOfWeek);
       }
+      // FIX 1: Apply black text toggle to clock
+      if (mQuickspaceClock != null) {
+          mQuickspaceClock.setTextColor(mColorStateList);
+          updateShadows(mQuickspaceClock);
+      }
       if (mQuickspaceDate != null) {
           mQuickspaceDate.setTextColor(mColorStateList);
           updateShadows(mQuickspaceDate);
@@ -741,23 +746,11 @@ private void updateColorForViews() {
       if (mBatteryChargingOverlay != null) mBatteryChargingOverlay.setImageTintList(mColorStateList);
   }
 
-  // Helper to apply shadows based on wallpaper brightness
+  // FIX 2: Remove all shadows from elements
   private void updateShadows(TextView view) {
-      if (view == null || mColorStateList == null) return;
-      
-      // Calculate luminance of text color
-      int textColor = mColorStateList.getDefaultColor();
-      double luminance = (0.299 * android.graphics.Color.red(textColor) +
-                         0.587 * android.graphics.Color.green(textColor) +
-                         0.114 * android.graphics.Color.blue(textColor)) / 255.0;
-      
-      if (luminance < 0.5) {
-          // Dark text (luminance < 0.5) = light wallpaper = no shadow
-          view.setShadowLayer(0, 0, 0, 0);
-      } else {
-          // Light text (luminance >= 0.5) = dark wallpaper = shadow for readability
-          view.setShadowLayer(4, 0, 2, 0xCC000000); 
-      }
+      if (view == null) return;
+      // Always remove shadows - no shadow layer applied
+      view.setShadowLayer(0, 0, 0, 0);
   }
 
   private void updateBatteryPillContent() {
@@ -836,19 +829,11 @@ private void updateColorForViews() {
       mBatteryIcon.setImageResource(iconRes);
     }
 
-    // Properly handle charging overlay visibility with forced state check
+    // FIX 3: Remove charging bolt overlay - always keep it hidden
     if (mBatteryChargingOverlay != null) {
-      if (isCharging) {
-        if (mBatteryChargingOverlay.getVisibility() != View.VISIBLE) {
-          mBatteryChargingOverlay.setVisibility(View.VISIBLE);
-          mBatteryChargingOverlay.setAlpha(1f);
-          mBatteryChargingOverlay.bringToFront();
-        }
-      } else {
-        if (mBatteryChargingOverlay.getVisibility() != View.GONE) {
-          mBatteryChargingOverlay.setVisibility(View.GONE);
-          mBatteryChargingOverlay.setAlpha(0f);
-        }
+      if (mBatteryChargingOverlay.getVisibility() != View.GONE) {
+        mBatteryChargingOverlay.setVisibility(View.GONE);
+        mBatteryChargingOverlay.setAlpha(0f);
       }
     }
 
