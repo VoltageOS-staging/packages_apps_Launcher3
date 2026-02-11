@@ -544,4 +544,13 @@
     <string name="icon_pack_add">Install more</string>
     <string name="icon_pack_no_market">There\'s no available app store</string>
 
+    <!-- Long press nav handle search app -->
+    <string name="long_press_nav_handle_search_app_title">Long press nav handle action</string>
+    <string name="long_press_nav_handle_search_app_summary">%s</string>
+    <string name="long_press_nav_handle_search_app_off">Disabled</string>
+    <string name="long_press_nav_handle_search_app_gsa">Google Search App</string>
+    <string name="long_press_nav_handle_search_app_cts">Circle to Search</string>
+    <string name="long_press_nav_handle_search_app_auto">Auto (System Default)</string>
+    <string name="long_press_nav_handle_unavailable">(Not installed)</string>
+
 </resources>

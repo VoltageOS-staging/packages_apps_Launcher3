@@ -25,6 +25,8 @@ import android.util.Log
 import android.view.Display.DEFAULT_DISPLAY
 import androidx.annotation.VisibleForTesting
 import com.android.internal.app.AssistUtils
+import com.android.launcher3.LauncherPrefs
+import com.android.launcher3.Utilities
 import com.android.launcher3.dagger.ApplicationContext
 import com.android.launcher3.logging.StatsLogManager
 import com.android.launcher3.logging.StatsLogManager.LauncherEvent.LAUNCHER_LAUNCH_ASSISTANT_FAILED_SERVICE_ERROR
@@ -156,6 +158,39 @@ internal constructor(
             statsLogManager.logger().log(LAUNCHER_LAUNCH_ASSISTANT_FAILED_SERVICE_ERROR)
             return false
         }
+        
+        // Check user preference for search app
+        val searchAppPref = LauncherPrefs.LONG_PRESS_NAV_HANDLE_SEARCH_APP.get(context)
+        when (searchAppPref) {
+            "off" -> {
+                Log.i(TAG, "Contextual Search invocation disabled by user preference")
+                statsLogManager.logger().log(LAUNCHER_LAUNCH_OMNI_FAILED_SETTING_DISABLED)
+                return false
+            }
+            "gsa" -> {
+                if (!Utilities.isGSAEnabled(context)) {
+                    Log.i(TAG, "GSA preferred but not available")
+                    statsLogManager.logger().log(LAUNCHER_LAUNCH_OMNI_FAILED_NOT_AVAILABLE)
+                    return false
+                }
+            }
+            "cts" -> {
+                if (!Utilities.isCTSAvailable(context)) {
+                    Log.i(TAG, "CTS preferred but not available")
+                    statsLogManager.logger().log(LAUNCHER_LAUNCH_OMNI_FAILED_NOT_AVAILABLE)
+                    return false
+                }
+            }
+            else -> {
+                // "auto" or any other value - accept either GSA or CTS
+                if (!Utilities.isGSAEnabled(context) && !Utilities.isCTSAvailable(context)) {
+                    Log.i(TAG, "Neither GSA nor CTS available")
+                    statsLogManager.logger().log(LAUNCHER_LAUNCH_OMNI_FAILED_NOT_AVAILABLE)
+                    return false
+                }
+            }
+        }
+        
         if (!contextualSearchStateManager.isContextualSearchSettingEnabled) {
             Log.i(TAG, "Contextual Search invocation failed: setting disabled")
             statsLogManager.logger().log(LAUNCHER_LAUNCH_OMNI_FAILED_SETTING_DISABLED)
@@ -219,14 +254,99 @@ internal constructor(
         if (contextualSearchManager == null) {
             return false
         }
+        
+        // Get user preference and launch specific app if selected
+        val searchAppPref = LauncherPrefs.LONG_PRESS_NAV_HANDLE_SEARCH_APP.get(context)
+        val launched = when (searchAppPref) {
+            "gsa" -> {
+                // Force launch Google Search App
+                launchSpecificSearchApp(Utilities.GSA_PACKAGE, entryPoint, config)
+            }
+            "cts" -> {
+                // Force launch Circle to Search
+                launchSpecificSearchApp(Utilities.CTS_PACKAGE, entryPoint, config)
+            }
+            else -> {
+                // Auto mode - let system decide, but prefer CTS if available
+                if (Utilities.isCTSAvailable(context)) {
+                    launchSpecificSearchApp(Utilities.CTS_PACKAGE, entryPoint, config)
+                } else {
+                    // Fall back to system default (GSA)
+                    launchViaContextualSearchManager(entryPoint, config)
+                }
+            }
+        }
+        
+        return launched
+    }
+    
+    /**
+     * Launch a specific search app directly by package name
+     */
+    private fun launchSpecificSearchApp(
+        packageName: String,
+        entryPoint: Int,
+        config: ContextualSearchConfig?
+    ): Boolean {
+        try {
+            val intent = android.content.Intent(
+                "android.app.contextualsearch.action.LAUNCH_CONTEXTUAL_SEARCH"
+            ).apply {
+                setPackage(packageName)
+                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                putExtra("entrypoint", entryPoint)
+                
+                // Add config extras if available
+                config?.let { cfg ->
+                    cfg.sourceBounds?.let { bounds ->
+                        putExtra("source_bounds", bounds)
+                    }
+                    putExtra("display_id", cfg.displayId)
+                }
+            }
+            
+            // Check if app can handle the intent
+            val pm = context.packageManager
+            val resolveInfo = pm.resolveActivity(intent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+            
+            if (resolveInfo != null) {
+                val recentsContainerInterface = getRecentsContainerInterface()
+                if (recentsContainerInterface?.isInLiveTileMode() == true) {
+                    Log.i(TAG, "Contextual Search invocation attempted: live tile")
+                    endLiveTileMode(recentsContainerInterface) {
+                        context.startActivity(intent)
+                    }
+                } else {
+                    context.startActivity(intent)
+                }
+                Log.i(TAG, "Launched specific search app: $packageName")
+                return true
+            } else {
+                Log.w(TAG, "No activity found to handle intent for package: $packageName")
+                return false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to launch specific search app: $packageName", e)
+            return false
+        }
+    }
+    
+    /**
+     * Launch via ContextualSearchManager (system default resolution)
+     */
+    private fun launchViaContextualSearchManager(
+        entryPoint: Int,
+        config: ContextualSearchConfig?
+    ): Boolean {
         val recentsContainerInterface = getRecentsContainerInterface()
         if (recentsContainerInterface?.isInLiveTileMode() == true) {
             Log.i(TAG, "Contextual Search invocation attempted: live tile")
             endLiveTileMode(recentsContainerInterface) {
-                contextualSearchManager.startContextualSearch(entryPoint, config)
+                contextualSearchManager?.startContextualSearch(entryPoint, config)
             }
         } else {
-            contextualSearchManager.startContextualSearch(entryPoint, config)
+            contextualSearchManager?.startContextualSearch(entryPoint, config)
         }
         return true
     }

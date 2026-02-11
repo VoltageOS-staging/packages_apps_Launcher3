@@ -51,6 +51,15 @@
         settings:units="px"
         android:defaultValue="30" />
 
+    <ListPreference
+        android:key="pref_long_press_nav_handle_search_app"
+        android:title="@string/long_press_nav_handle_search_app_title"
+        android:summary="@string/long_press_nav_handle_search_app_summary"
+        android:entries="@array/long_press_nav_handle_search_app_entries"
+        android:entryValues="@array/long_press_nav_handle_search_app_values"
+        android:defaultValue="auto"
+        android:persistent="true" />
+
     <com.android.launcher3.settings.preference.RestartPreference
         android:key="pref_restart"
         android:title="@string/pref_restart_title"

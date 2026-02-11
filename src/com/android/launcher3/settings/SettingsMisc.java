@@ -139,7 +139,8 @@ public class SettingsMisc extends CollapsingToolbarBaseActivity
 
     @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
-        if (LauncherPrefs.BLUR_DEPTH.getSharedPrefKey().equals(key)) {
+        if (LauncherPrefs.BLUR_DEPTH.getSharedPrefKey().equals(key) ||
+                LauncherPrefs.LONG_PRESS_NAV_HANDLE_SEARCH_APP.getSharedPrefKey().equals(key)) {
             LauncherAppState.INSTANCE.executeIfCreated(app -> app.setNeedsRestart());
         }
     }
@@ -322,6 +323,12 @@ public class SettingsMisc extends CollapsingToolbarBaseActivity
                 return BlurUtils.supportsBlursOnWindows();
             }
 
+            // Long press nav handle search app preference
+            if (key.equals(LauncherPrefs.LONG_PRESS_NAV_HANDLE_SEARCH_APP.getSharedPrefKey())) {
+                setupLongPressNavHandlePreference(preference);
+                return true;
+            }
+
             DisplayController.Info info = DisplayController.INSTANCE.get(getContext()).getInfo();
             switch (preference.getKey()) {
                 case ALLOW_ROTATION_PREFERENCE_KEY:
@@ -390,6 +397,70 @@ public class SettingsMisc extends CollapsingToolbarBaseActivity
             } catch (PackageManager.NameNotFoundException e) {
                 return false;
             }
+        }
+
+        /**
+         * Setup long press nav handle preference with availability indicators
+         */
+        private void setupLongPressNavHandlePreference(Preference preference) {
+            if (!(preference instanceof androidx.preference.ListPreference)) {
+                return;
+            }
+
+            androidx.preference.ListPreference listPreference = 
+                    (androidx.preference.ListPreference) preference;
+
+            boolean gsaAvailable = Utilities.isGSAEnabled(getContext());
+            boolean ctsAvailable = Utilities.isCTSAvailable(getContext());
+
+            // Build dynamic entries based on availability
+            String[] baseEntries = new String[]{
+                getString(R.string.long_press_nav_handle_search_app_off),
+                getString(R.string.long_press_nav_handle_search_app_gsa),
+                getString(R.string.long_press_nav_handle_search_app_cts),
+                getString(R.string.long_press_nav_handle_search_app_auto)
+            };
+            
+            String[] values = new String[]{"off", "gsa", "cts", "auto"};
+            
+            // Add "(Not installed)" indicator for unavailable apps
+            String unavailable = " " + getString(R.string.long_press_nav_handle_unavailable);
+            if (!gsaAvailable) {
+                baseEntries[1] = baseEntries[1] + unavailable;
+            }
+            if (!ctsAvailable) {
+                baseEntries[2] = baseEntries[2] + unavailable;
+            }
+
+            listPreference.setEntries(baseEntries);
+            listPreference.setEntryValues(values);
+            
+            // Update summary to show currently selected option
+            CharSequence entry = listPreference.getEntry();
+            if (entry != null) {
+                listPreference.setSummary(entry);
+            }
+            
+            // Prevent selecting unavailable options
+            listPreference.setOnPreferenceChangeListener((pref, newValue) -> {
+                String value = (String) newValue;
+                
+                // Block selection of unavailable apps
+                if ("gsa".equals(value) && !gsaAvailable) {
+                    return false; // Don't allow selecting GSA if not installed
+                }
+                if ("cts".equals(value) && !ctsAvailable) {
+                    return false; // Don't allow selecting CTS if not installed
+                }
+                
+                // Update summary when value changes
+                int index = listPreference.findIndexOfValue(value);
+                if (index >= 0) {
+                    listPreference.setSummary(baseEntries[index]);
+                }
+                
+                return true; // Allow selection
+            });
         }
 
         @Override

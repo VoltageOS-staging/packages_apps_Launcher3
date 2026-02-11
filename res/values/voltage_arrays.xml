@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string-array name="long_press_nav_handle_search_app_entries">
+        <item>@string/long_press_nav_handle_search_app_off</item>
+        <item>@string/long_press_nav_handle_search_app_gsa</item>
+        <item>@string/long_press_nav_handle_search_app_cts</item>
+        <item>@string/long_press_nav_handle_search_app_auto</item>
+    </string-array>
+
+    <string-array name="long_press_nav_handle_search_app_values">
+        <item>off</item>
+        <item>gsa</item>
+        <item>cts</item>
+        <item>auto</item>
+    </string-array>
+</resources>
