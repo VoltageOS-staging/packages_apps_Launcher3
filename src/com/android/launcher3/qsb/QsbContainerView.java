@@ -70,6 +70,12 @@ public class QsbContainerView extends FrameLayout {
     @WorkerThread
     @Nullable
     public static String getSearchWidgetPackageName(@NonNull Context context) {
+        String override = Utilities.getQSBProviderOverride(context);
+        if (override != null && !override.isEmpty()
+                && Utilities.isPackageInstalled(context, override)) {
+            return override;
+        }
+
         String providerPkg = Settings.Secure.getString(context.getContentResolver(),
                 SEARCH_ENGINE_SETTINGS_KEY);
         if (providerPkg == null) {
@@ -84,7 +90,17 @@ public class QsbContainerView extends FrameLayout {
             if (providerPkg == null && Utilities.isGSAEnabled(context)) {
                 providerPkg = Utilities.GSA_PACKAGE;
             }
-        }
+
+        if (providerPkg == null) {
+            String[] fallbacks = context.getResources().getStringArray(R.array.qsb_search_fallback);
+            for (String fallback : fallbacks) {
+                if (Utilities.isPackageInstalled(context, fallback)) {
+                    providerPkg = fallback;
+                    break;
+                 }
+             }
+         }
+     }
         return providerPkg;
     }
 

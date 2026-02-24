@@ -40,6 +40,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
+import android.content.SharedPreferences;
 import android.content.pm.LauncherActivityInfo;
 import android.content.pm.LauncherApps;
 import android.content.pm.PackageManager;
@@ -134,6 +135,7 @@ public final class Utilities {
 
     private static final String TAG = "Launcher.Utilities";
 
+    public static final String KEY_DOCK_SEARCH_PROVIDER = "pref_dock_search_provider";
     private static final String TRIM_PATTERN = "(^\\h+|\\h+$)";
 
     private static final Matrix sMatrix = new Matrix();
@@ -1109,9 +1111,19 @@ public final class Utilities {
         }, WAIT_BEFORE_RESTART);
     }
 
+    public static String getQSBProviderOverride(Context context) {
+        SharedPreferences prefs = LauncherPrefs.getPrefs(context.getApplicationContext());
+        return prefs.getString(KEY_DOCK_SEARCH_PROVIDER, "");
+    }
+
     public static boolean isPackageInstalled(Context context, String pkg) {
+        return isPackageInstalled(context, pkg, false);
+    }
+
+    public static boolean isPackageInstalled(Context context, String pkg, boolean systemOnly) {
         try {
-            return context.getPackageManager().getApplicationInfo(pkg, 0).enabled;
+            int flags = systemOnly ? PackageManager.MATCH_SYSTEM_ONLY : 0;
+            return context.getPackageManager().getApplicationInfo(pkg, flags).enabled;
         } catch (Exception e) {
             return false;
         }
