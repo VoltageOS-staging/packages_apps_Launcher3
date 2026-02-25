@@ -1116,6 +1116,24 @@ public final class Utilities {
         return prefs.getString(KEY_DOCK_SEARCH_PROVIDER, "");
     }
 
+    public static boolean isPackageEnabled(String pkg, Context context) {
+        try {
+            return context.getPackageManager().getApplicationInfo(pkg, 0).enabled;
+        } catch (PackageManager.NameNotFoundException e) {
+            return false;
+        }
+    }
+
+    public static java.util.LinkedHashMap<String, String> getQSBProviderFallbacks(Context context) {
+        java.util.LinkedHashMap<String, String> map = new java.util.LinkedHashMap<>();
+        String[] pkgs  = context.getResources().getStringArray(R.array.qsb_search_fallback);
+        String[] names = context.getResources().getStringArray(R.array.qsb_search_fallback_names);
+        for (int i = 0; i < pkgs.length; i++) {
+            map.put(pkgs[i], i < names.length ? names[i] : pkgs[i]);
+        }
+        return map;
+    }
+
     public static boolean isPackageInstalled(Context context, String pkg) {
         return isPackageInstalled(context, pkg, false);
     }
@@ -1183,7 +1201,7 @@ public final class Utilities {
     }
 
     public static boolean showQSB(Context context) {
-        return isGSAEnabled(context) && isQSBEnabled(context);
+        return isQSBEnabled(context);
     }
 
     private static boolean isQSBEnabled(Context context) {

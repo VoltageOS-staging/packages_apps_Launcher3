@@ -364,6 +364,9 @@ public class SettingsHomescreen extends CollapsingToolbarBaseActivity
                 if (!Utilities.isPackageInstalled(getContext(), fallbacks[i])) {
                     continue;
                 }
+            if (entryValues.contains(fallbacks[i])) {
+                continue;
+            }
                 entries.add(fallbackNames[i]);
                 entryValues.add(fallbacks[i]);
             }

@@ -3,25 +3,34 @@ package com.android.launcher3.qsb;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.LauncherActivityInfo;
+import android.content.pm.LauncherApps;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.PaintDrawable;
 import android.net.Uri;
+import android.os.Process;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+
 import com.android.launcher3.LauncherPrefs;
 import com.android.launcher3.R;
 import com.android.launcher3.Reorderable;
 import com.android.launcher3.Utilities;
-import com.android.launcher3.qsb.QsbContainerView;
+import com.android.launcher3.icons.BitmapInfo;
+import com.android.launcher3.icons.LauncherIcons;
 import com.android.launcher3.util.MultiTranslateDelegate;
 import com.android.launcher3.util.Themes;
-import android.view.View;
+
+import java.util.List;
 
 public class QsbLayout extends FrameLayout implements Reorderable {
 
@@ -99,7 +108,6 @@ public class QsbLayout extends FrameLayout implements Reorderable {
             strokeDrawable.getPaint().setStrokeWidth(strokeWidth);
             strokeDrawable.setCornerRadius(cornerRadius);
             LayerDrawable combinedDrawable = new LayerDrawable(new Drawable[]{backgroundDrawable, strokeDrawable});
-
             inner.setClipToOutline(cornerRadius > 0);
             inner.setBackground(combinedDrawable);
         } else {
@@ -135,36 +143,101 @@ public class QsbLayout extends FrameLayout implements Reorderable {
     }
 
     private void setUpMainSearch() {
-        try {
-            setOnClickListener(view -> {
-                Intent intent = new Intent();
-                intent.setAction("android.search.action.GLOBAL_SEARCH");
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                intent.setPackage(QsbContainerView.getSearchWidgetPackageName(view.getContext()));
+        // Resolve package at click time to avoid stale null if view inflates
+        // before package scan completes, which would cause a chooser dialog.
+        setOnClickListener(view -> {
+            String pkg = QsbContainerView.getSearchWidgetPackageName(view.getContext());
+            if (pkg == null) return;
+            // GLOBAL_SEARCH is Google-only; fallback apps handle ACTION_WEB_SEARCH.
+            final String action = Utilities.GSA_PACKAGE.equals(pkg)
+                    ? "android.search.action.GLOBAL_SEARCH"
+                    : Intent.ACTION_WEB_SEARCH;
+            Intent intent = new Intent(action)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    .setPackage(pkg);
+            if (view.getContext().getPackageManager().resolveActivity(intent, 0) != null) {
                 view.getContext().startActivity(intent);
-            });
-        } catch (Exception e) {
-            // Do nothing
-        }
+            }
+        });
     }
 
     private void setupGIcon() {
-        try {
-            gIcon.setImageResource(mIsThemed ? R.drawable.ic_super_g_themed : R.drawable.ic_super_g_color);
-            gIcon.setOnClickListener(view -> {
-                Intent intent = view.getContext().getPackageManager().getLaunchIntentForPackage(Utilities.GSA_PACKAGE);
-                if (intent != null) {
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                    view.getContext().startActivity(intent);
-                }
-            });
-        } catch (Exception e) {
-            // Do nothing
+        String searchPackage = QsbContainerView.getSearchWidgetPackageName(getContext());
+        if (searchPackage == null) {
+            gIcon.setVisibility(View.GONE);
+            return;
         }
+        if (Utilities.GSA_PACKAGE.equals(searchPackage)) {
+            // Google app: use the branded G icon (themed or color)
+            gIcon.setImageResource(mIsThemed
+                    ? R.drawable.ic_super_g_themed
+                    : R.drawable.ic_super_g_color);
+        } else {
+            // Fallback app: load its icon through LauncherIcons, exactly the
+            // same pipeline the app drawer uses, so themed icons match perfectly.
+            try {
+                LauncherApps launcherApps = (LauncherApps)
+                        getContext().getSystemService(Context.LAUNCHER_APPS_SERVICE);
+                List<LauncherActivityInfo> activities =
+                        launcherApps.getActivityList(searchPackage, Process.myUserHandle());
+                if (!activities.isEmpty()) {
+                Drawable appIcon = activities.get(0).getIcon(0);
+                if (mIsThemed) {
+                    com.android.launcher3.graphics.IconThemeController themeController =
+                            com.android.launcher3.graphics.ThemeManager.INSTANCE
+                                    .get(getContext()).getThemeController();
+                    if (themeController != null) {
+                        android.graphics.drawable.AdaptiveIconDrawable themedIcon =
+                                themeController.createThemedAdaptiveIcon(getContext(), 
+                                        appIcon instanceof android.graphics.drawable.AdaptiveIconDrawable
+                                                ? (android.graphics.drawable.AdaptiveIconDrawable) appIcon
+                                                : null, null);
+                        if (themedIcon != null) appIcon = themedIcon;
+                    }
+                }
+                // Rasterize to bitmap at icon size
+                try (LauncherIcons li = LauncherIcons.obtain(getContext())) {
+                    BitmapInfo bitmapInfo = li.createIconBitmap(appIcon);
+                    gIcon.setColorFilter(null);
+                    gIcon.setImageBitmap(bitmapInfo.icon);
+                }
+                } else {
+                    // No launchable activity (rare) — fall back to app icon
+                    gIcon.setImageDrawable(
+                            getContext().getPackageManager().getApplicationIcon(searchPackage));
+                }
+                // App icons are full-bleed AdaptiveIconDrawables, reduce margin
+                // and add padding so it doesn't look oversized/left-hugging.
+                ViewGroup.MarginLayoutParams lp =
+                        (ViewGroup.MarginLayoutParams) gIcon.getLayoutParams();
+                int dp8 = (int) (8 * getResources().getDisplayMetrics().density);
+                lp.setMarginStart(dp8);
+                gIcon.setLayoutParams(lp);
+                gIcon.setPadding(dp8, dp8, dp8, dp8);
+            } catch (Exception e) {
+                gIcon.setVisibility(View.GONE);
+            }
+        }
+        // Resolve at click time for consistency with setUpMainSearch()
+        gIcon.setOnClickListener(view -> {
+            String pkg = QsbContainerView.getSearchWidgetPackageName(view.getContext());
+            if (pkg == null) return;
+            Intent intent = view.getContext().getPackageManager().getLaunchIntentForPackage(pkg);
+            if (intent != null) {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                view.getContext().startActivity(intent);
+            }
+        });
     }
 
     private void setupLensIcon() {
         try {
+            // Lens is a Google-only feature; hide for all fallback providers.
+            String searchPackage = QsbContainerView.getSearchWidgetPackageName(getContext());
+            if (!Utilities.GSA_PACKAGE.equals(searchPackage)) {
+                lensIcon.setVisibility(View.GONE);
+                return;
+            }
             lensIcon.setImageResource(mIsThemed ? R.drawable.ic_lens_themed : R.drawable.ic_lens_color);
             lensIcon.setOnClickListener(view -> {
                 Intent intent = new Intent();
@@ -182,23 +255,35 @@ public class QsbLayout extends FrameLayout implements Reorderable {
 
     private void setupMicIcon() {
         try {
-            boolean isMusicSearch = Utilities.isMusicSearchEnabled(getContext());
+            String searchPackage = QsbContainerView.getSearchWidgetPackageName(getContext());
+            boolean isGSA = Utilities.GSA_PACKAGE.equals(searchPackage);
+            // Music search and voice command are GSA-only features
+            boolean isMusicSearch = isGSA && Utilities.isMusicSearchEnabled(getContext());
+
             if (isMusicSearch) {
                 micIcon.setImageResource(mIsThemed ? R.drawable.ic_music_themed : R.drawable.ic_music_color);
             } else {
                 micIcon.setImageResource(mIsThemed ? R.drawable.ic_mic_themed : R.drawable.ic_mic_color);
             }
-            micIcon.setOnClickListener(view -> {
-                Intent intent = new Intent();
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                if (isMusicSearch) {
-                    intent.setAction("com.google.android.googlequicksearchbox.MUSIC_SEARCH");
-                    intent.setPackage(QsbContainerView.getSearchWidgetPackageName(view.getContext()));
-                } else {
-                    intent.setAction("android.intent.action.VOICE_COMMAND");
-                }
-                view.getContext().startActivity(intent);
-            });
+
+            final Intent micIntent = new Intent()
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            if (isMusicSearch) {
+                micIntent.setAction("com.google.android.googlequicksearchbox.MUSIC_SEARCH")
+                         .setPackage(searchPackage);
+            } else if (isGSA) {
+                micIntent.setAction(Intent.ACTION_VOICE_COMMAND);
+            } else {
+                // Non-GSA fallback: use WEB_SEARCH on the same package
+                micIntent.setAction(Intent.ACTION_WEB_SEARCH)
+                         .setPackage(searchPackage);
+            }
+
+            if (getContext().getPackageManager().resolveActivity(micIntent, 0) != null) {
+                micIcon.setOnClickListener(view -> view.getContext().startActivity(micIntent));
+            } else {
+                micIcon.setVisibility(View.GONE);
+            }
         } catch (Exception e) {
             micIcon.setVisibility(View.GONE);
         }
@@ -218,9 +303,9 @@ public class QsbLayout extends FrameLayout implements Reorderable {
                 : R.drawable.ic_gemini_color);
 
         geminiIcon.setOnClickListener(view -> {
-            Context ctx = view.getContext();
             try {
-                Intent intent = view.getContext().getPackageManager().getLaunchIntentForPackage(Utilities.GEMINI_PACKAGE);
+                Intent intent = view.getContext().getPackageManager()
+                        .getLaunchIntentForPackage(Utilities.GEMINI_PACKAGE);
                 if (intent != null) {
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                     view.getContext().startActivity(intent);
@@ -237,7 +322,7 @@ public class QsbLayout extends FrameLayout implements Reorderable {
         float qsbWidgetHeight = res.getDimension(R.dimen.qsb_widget_height);
         float qsbWidgetPadding = res.getDimension(R.dimen.qsb_widget_vertical_padding);
         float innerHeight = qsbWidgetHeight - 2 * qsbWidgetPadding;
-        return (innerHeight / 2) * ((float)LauncherPrefs.SEARCH_RADIUS_SIZE.get(getContext()) / 100f);
+        return (innerHeight / 2) * ((float) LauncherPrefs.SEARCH_RADIUS_SIZE.get(getContext()) / 100f);
     }
 
     @Override
