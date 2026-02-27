@@ -343,10 +343,6 @@ public class SettingsHomescreen extends CollapsingToolbarBaseActivity
             if (mSearchProviderPref == null) {
                 return;
             }
-            if (QsbContainerView.getSearchWidgetPackageName(getContext()) == null) {
-                mSearchProviderPref.setEnabled(false);
-                return;
-            }
             if (mShowGoogleBarPref != null) {
                 mSearchProviderPref.setEnabled(
                         ((SwitchPreferenceCompat) mShowGoogleBarPref).isChecked());
@@ -370,6 +366,18 @@ public class SettingsHomescreen extends CollapsingToolbarBaseActivity
                 entries.add(fallbackNames[i]);
                 entryValues.add(fallbacks[i]);
             }
+        boolean hasAnyProvider = Utilities.isGSAEnabled(getContext())
+                || entries.size() > 1;
+       if (!hasAnyProvider) {
+            mSearchProviderPref.setVisible(false);
+            return;
+        }
+        mSearchProviderPref.setVisible(true);
+        if (mShowGoogleBarPref != null) {
+            mSearchProviderPref.setEnabled(
+                    ((SwitchPreferenceCompat) mShowGoogleBarPref).isChecked());
+        }
+
             mSearchProviderPref.setOnPreferenceChangeListener((pref, newValue) -> {
                 String value = (String) newValue;
                 int index = mSearchProviderPref.findIndexOfValue(value);

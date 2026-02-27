@@ -149,14 +149,19 @@ public class QsbLayout extends FrameLayout implements Reorderable {
         setOnClickListener(view -> {
             String pkg = QsbContainerView.getSearchWidgetPackageName(view.getContext());
             if (pkg == null) return;
-            final String action = Utilities.GSA_PACKAGE.equals(pkg)
-                    ? "android.search.action.GLOBAL_SEARCH"
-                    : Intent.ACTION_WEB_SEARCH;
-            Intent intent = new Intent(action)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                    .setPackage(pkg);
-            if (view.getContext().getPackageManager().resolveActivity(intent, 0) != null) {
-                view.getContext().startActivity(intent);
+            String[] actionsToTry = {
+                "android.search.action.GLOBAL_SEARCH",
+                "android.intent.action.WEB_SEARCH",
+                Intent.ACTION_WEB_SEARCH,
+            };
+            for (String action : actionsToTry) {
+                Intent intent = new Intent(action)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        .setPackage(pkg);
+                if (view.getContext().getPackageManager().resolveActivity(intent, 0) != null) {
+                    view.getContext().startActivity(intent);
+                    return;
+                }
             }
         });
     }

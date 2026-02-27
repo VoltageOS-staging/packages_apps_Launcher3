@@ -1201,7 +1201,10 @@ public final class Utilities {
     }
 
     public static boolean showQSB(Context context) {
-        return isQSBEnabled(context);
+        if (!isQSBEnabled(context)) return false;
+        return isGSAEnabled(context)
+                || getQSBProviderFallbacks(context).keySet().stream()
+                        .anyMatch(pkg -> isPackageEnabled(pkg, context));
     }
 
     private static boolean isQSBEnabled(Context context) {
