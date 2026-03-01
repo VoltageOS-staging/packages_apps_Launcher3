@@ -55,6 +55,7 @@ import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewGroup.MarginLayoutParams;
 import android.view.ViewOutlineProvider;
 import android.view.WindowInsets;
 import android.widget.Button;
@@ -305,10 +306,12 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
     protected void onFinishInflate() {
         super.onFinishInflate();
 
-        if (LauncherPrefs.DRAWER_SEARCH.get(getContext())) {
-            mSearchContainer.setVisibility(View.VISIBLE);
-        } else {
+
+        String searchPlacement = LauncherPrefs.ALL_APPS_SEARCH_PLACEMENT.get(getContext());
+        if ("0".equals(searchPlacement)) {
             mSearchContainer.setVisibility(View.GONE);
+        } else {
+            mSearchContainer.setVisibility(View.VISIBLE);
         }
 
         mAH.get(SEARCH).setup(mSearchRecyclerView,
@@ -744,12 +747,33 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
 
         removeCustomRules(rvContainer);
         removeCustomRules(getSearchRecyclerView());
-        if (isSearchBarFloating()) {
+        String searchPlacement = LauncherPrefs.ALL_APPS_SEARCH_PLACEMENT.get(getContext());
+        boolean searchHidden = "0".equals(searchPlacement);
+        boolean searchBottom = "2".equals(searchPlacement);
+
+        if (searchHidden) {
+            getSearchRecyclerView().setVisibility(View.GONE);
+            if (mSearchContainer != null) {
+                mSearchContainer.setVisibility(View.GONE);
+            }
             alignParentTop(rvContainer, showTabs);
-            alignParentTop(getSearchRecyclerView(), /* tabs= */ false);
         } else {
-            layoutBelowSearchContainer(rvContainer, showTabs);
-            layoutBelowSearchContainer(getSearchRecyclerView(), /* tabs= */ false);
+            getSearchRecyclerView().setVisibility(View.VISIBLE);
+            if (mSearchContainer != null) {
+                mSearchContainer.setVisibility(View.VISIBLE);
+            }
+            if (isSearchBarFloating()) {
+                alignParentTop(rvContainer, showTabs);
+                alignParentTop(getSearchRecyclerView(), /* tabs= */ false);
+            } else if (searchBottom) {
+                layoutAboveSearchContainer(rvContainer, showTabs);
+                layoutAboveSearchContainer(getSearchRecyclerView(), /* tabs= */ false);
+                layoutSearchContainerBottom();
+            } else {
+                layoutBelowSearchContainer(rvContainer, showTabs);
+                layoutBelowSearchContainer(getSearchRecyclerView(), /* tabs= */ false);
+                layoutSearchContainerTop();
+            }
         }
 
         updateSearchResultsVisibility();
@@ -787,7 +811,11 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         mAdditionalHeaderRows.forEach(row -> mHeader.onPluginConnected(row, mActivityContext));
 
         removeCustomRules(mHeader);
-        if (isSearchBarFloating()) {
+        String searchPlacement = LauncherPrefs.ALL_APPS_SEARCH_PLACEMENT.get(getContext());
+        boolean searchBottom = "2".equals(searchPlacement);
+        boolean searchHidden = "0".equals(searchPlacement);
+
+        if (isSearchBarFloating() || searchBottom || searchHidden) {
             alignParentTop(mHeader, false /* includeTabsMargin */);
         } else {
             layoutBelowSearchContainer(mHeader, false /* includeTabsMargin */);
@@ -964,6 +992,47 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
                     R.dimen.all_apps_tabs_margin_top);
         }
         layoutParams.topMargin = topMargin;
+    }
+
+    private void layoutAboveSearchContainer(View v, boolean includeTabsMargin) {
+        if (!(v.getLayoutParams() instanceof RelativeLayout.LayoutParams)) {
+            return;
+        }
+
+        RelativeLayout.LayoutParams layoutParams = (LayoutParams) v.getLayoutParams();
+        layoutParams.addRule(RelativeLayout.ALIGN_PARENT_TOP);
+        layoutParams.addRule(RelativeLayout.ABOVE, R.id.search_container_all_apps);
+
+        int topMargin = 0;
+        if (includeTabsMargin) {
+            topMargin += getContext().getResources().getDimensionPixelSize(
+                    R.dimen.all_apps_header_pill_height)
+                    + getContext().getResources().getDimensionPixelSize(
+                            R.dimen.all_apps_tabs_margin_top);
+        }
+        layoutParams.topMargin = topMargin;
+        layoutParams.bottomMargin = getContext().getResources().getDimensionPixelSize(
+                R.dimen.all_apps_search_bar_bottom_adjustment);
+    }
+
+    private void layoutSearchContainerBottom() {
+        if (mSearchContainer == null || !(mSearchContainer.getLayoutParams() instanceof RelativeLayout.LayoutParams)) {
+            return;
+        }
+        RelativeLayout.LayoutParams layoutParams = (LayoutParams) mSearchContainer.getLayoutParams();
+        layoutParams.removeRule(RelativeLayout.ALIGN_PARENT_TOP);
+        layoutParams.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+        mSearchContainer.setLayoutParams(layoutParams);
+    }
+
+    private void layoutSearchContainerTop() {
+        if (mSearchContainer == null || !(mSearchContainer.getLayoutParams() instanceof RelativeLayout.LayoutParams)) {
+            return;
+        }
+        RelativeLayout.LayoutParams layoutParams = (LayoutParams) mSearchContainer.getLayoutParams();
+        layoutParams.removeRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+        layoutParams.addRule(RelativeLayout.ALIGN_PARENT_TOP);
+        mSearchContainer.setLayoutParams(layoutParams);
     }
 
     private void alignParentTop(View v, boolean includeTabsMargin) {
@@ -1254,6 +1323,18 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
                         R.dimen.all_apps_additional_top_padding_floating_search);
             }
             setPadding(grid.allAppsLeftRightMargin, topPadding, grid.allAppsLeftRightMargin, 0);
+        }
+
+        if (mSearchContainer != null && mSearchContainer.getLayoutParams() instanceof MarginLayoutParams) {
+            MarginLayoutParams searchLp = (MarginLayoutParams) mSearchContainer.getLayoutParams();
+            String searchPlacement = LauncherPrefs.ALL_APPS_SEARCH_PLACEMENT.get(getContext());
+            if ("2".equals(searchPlacement) && !isSearchBarFloating()) {
+                searchLp.bottomMargin = Math.max(insets.bottom, mNavBarScrimHeight) +
+                        getResources().getDimensionPixelSize(R.dimen.all_apps_search_bar_bottom_adjustment);
+            } else {
+                searchLp.bottomMargin = 0;
+            }
+            mSearchContainer.setLayoutParams(searchLp);
         }
         InsettableFrameLayout.dispatchInsets(this, insets);
     }
