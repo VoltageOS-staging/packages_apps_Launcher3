@@ -255,7 +255,6 @@ public class SettingsIcons extends CollapsingToolbarBaseActivity
         }
 
         protected boolean initPreference(Preference preference) {
-            LauncherDisplayInfo info = DisplayController.INSTANCE.get(getContext()).getInfo();
             String key = preference.getKey();
             if (key == null) {
                 return true;
@@ -263,29 +262,6 @@ public class SettingsIcons extends CollapsingToolbarBaseActivity
             switch (key) {
                 case NOTIFICATION_DOTS_PREFERENCE_KEY:
                     return BuildConfig.NOTIFICATION_DOTS_ENABLED;
-                case DEVELOPER_OPTIONS_KEY:
-                    if (IS_STUDIO_BUILD) {
-                        preference.setOrder(0);
-                    }
-                    return mDeveloperOptionsEnabled;
-                case FIXED_LANDSCAPE_MODE:
-                    if ((InvariantDeviceProfile.INSTANCE.get(getContext()).deviceType
-                                    == TYPE_MULTI_DISPLAY)
-                            || (InvariantDeviceProfile.INSTANCE.get(getContext()).deviceType
-                                    == TYPE_TABLET)) {
-                        return false;
-                    }
-                    preference.setOnPreferenceChangeListener(
-                            (pref, newValue) -> {
-                                getActivity().setRequestedOrientation(
-                                        (boolean) newValue
-                                                ? ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                                                : ActivityInfo.SCREEN_ORIENTATION_USER
-                                );
-                                return true;
-                            }
-                    );
-                    return !info.isLargeScreen(info.realBounds);
             }
             return true;
         }

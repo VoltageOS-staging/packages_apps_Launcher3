@@ -261,8 +261,6 @@ public class SettingsMisc extends CollapsingToolbarBaseActivity
                 return true;
             }
             switch (key) {
-                case NOTIFICATION_DOTS_PREFERENCE_KEY:
-                    return BuildConfig.NOTIFICATION_DOTS_ENABLED;
                 case DEVELOPER_OPTIONS_KEY:
                     if (IS_STUDIO_BUILD) {
                         preference.setOrder(0);
